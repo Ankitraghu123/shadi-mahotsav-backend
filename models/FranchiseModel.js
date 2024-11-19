@@ -5,6 +5,18 @@ const FranchiseSchema = new mongoose.Schema({
     name: {
         type: String,
       },
+      mobileNumber: {
+        type: Number,
+      },
+      state:{
+        type:String,
+      },
+      city:{
+        type:String,
+      },
+      code :{
+        type:String
+      },
     refBy:{
         type:mongoose.Schema.Types.ObjectId,
         ref:'Franchise'
@@ -13,11 +25,11 @@ const FranchiseSchema = new mongoose.Schema({
         type:mongoose.Schema.Types.ObjectId,
         ref:'Franchise'
     }],
-    sublineOf:[{
+    uplineOf:{
         type:mongoose.Schema.Types.ObjectId,
         ref:'Franchise'
-    }],
-    sublines:[{
+    },
+    uplines:[{
         type:mongoose.Schema.Types.ObjectId,
         ref:'Franchise'
     }]

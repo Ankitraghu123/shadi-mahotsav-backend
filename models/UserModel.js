@@ -131,7 +131,21 @@ const UserSchema = new mongoose.Schema({
       connections:[{
         type:mongoose.Schema.Types.ObjectId,
         ref:'User'
-      }]
+      }],
+      plans: [
+        {
+          plan: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Plan',
+          },
+          purchaseDate: {
+            type: Date,
+          },
+          expiryDate: {
+            type: Date,
+          },
+        },
+      ],
   }, {
     timestamps: true
   });

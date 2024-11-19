@@ -183,7 +183,10 @@ const deleteProfilePicture = asyncHandler(async (req, res) => {
    const { id} = req.params;
  
    try {
-      const userData = await UserModel.findById(id)
+    const userData = await UserModel.findById(id).populate({
+      path: 'plans.plan', 
+      model: 'Plan', 
+   });
  
      res.status(200).json(userData);
    } catch (error) {
