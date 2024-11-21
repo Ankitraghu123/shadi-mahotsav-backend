@@ -45,6 +45,26 @@ const registerFranchise = expressAsyncHandler(async (req, res) => {
             return res.status(400).json({ message: 'Invalid referrer code. Referrer not found.' });
         }
 
+        const isInTree = async (root, targetId) => {
+            if (root._id.toString() === targetId) return true; // Found the target
+
+            for (const childId of root.refTo) {
+                const child = await FranchiseModel.findById(childId);
+                if (child && (await isInTree(child, targetId))) {
+                    return true; // Target found in the subtree
+                }
+            }
+
+            return false; // Target not found in this subtree
+        };
+
+        const uplineInRefTree = await isInTree(referrer, upline._id.toString());
+        if (!uplineInRefTree) {
+            return res.status(400).json({
+                message: 'The provided upline is not part of the referrer tree.',
+            });
+        }
+
         // 2. Find an available spot in the upline's downlines or their sub-tree
         let parent = upline;
         let availableParent = null;
@@ -71,6 +91,7 @@ const registerFranchise = expressAsyncHandler(async (req, res) => {
         
             return null; // No available slots found
         };
+
         
 
         availableParent = await findAvailableSlot(parent);
