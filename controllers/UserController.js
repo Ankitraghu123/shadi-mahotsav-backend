@@ -2,7 +2,7 @@ const { generateToken } = require('../config/jwtToken')
 const asyncHandler = require('express-async-handler')
 const {generateRefreshToken} = require('../config/refreshToken')
 const UserModel = require('../models/UserModel')
-const imagekit = require('../config/imagekit');
+const imagekit = require('../config/imageKit');
 const ChatModel = require('../models/ChatModel');
 
 
