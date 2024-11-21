@@ -6,6 +6,6 @@ router.post('/send', sendEnquiry);
 
 router.get('/get-all', getAllEnquiries);
 
-router.delete('/', deleteEnquiry);
+router.delete('/:id', deleteEnquiry);
 
 module.exports = router;

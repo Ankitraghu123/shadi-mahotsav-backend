@@ -46,6 +46,18 @@ const Login = asyncHandler(async (req, res) => {
    }
  });
 
+
+ const DeleteMember = asyncHandler(async (req, res) => {
+  try {
+    const {id} = req.params
+    const deletedUser = await UserModel.findByIdAndDelete(id);
+
+    res.status(201).json({ deletedUser });
+  } catch (error) {
+    res.status(500).json({ message: 'memeber deletion failed', error: error.message });
+  }
+});
+
  const EditProfile = async (req, res) => {
   try {
     const { userId } = req.params;
@@ -755,4 +767,4 @@ const getUsersChattedWith = async (req, res) => {
   }
 };
  
-module.exports = {Register,Login,SendRequest,RejectRequest,AcceptRequest,GetSingleUser,GetAllUser,AllReceivedRequest, AllSendedRequest,AllConnections,CompareProfile,FindMatchingProfiles,uploadProfilePicture,editProfilePicture,deleteProfilePicture,ProfileCompletion,EditProfile,AddImageToGallery,EditImageInGallery,DeleteImageFromGallery,getUsersChattedWith}
+module.exports = {Register,Login,SendRequest,RejectRequest,AcceptRequest,GetSingleUser,GetAllUser,AllReceivedRequest, AllSendedRequest,AllConnections,CompareProfile,FindMatchingProfiles,uploadProfilePicture,editProfilePicture,deleteProfilePicture,ProfileCompletion,EditProfile,AddImageToGallery,EditImageInGallery,DeleteImageFromGallery,getUsersChattedWith,DeleteMember}
