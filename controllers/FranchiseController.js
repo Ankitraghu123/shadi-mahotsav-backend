@@ -3,7 +3,7 @@ const FranchiseModel = require('../models/FranchiseModel');
 
 
 const registerFranchise = expressAsyncHandler(async (req, res) => {
-    const { name, refBy, uplineId } = req.body;
+    let { name, refBy, uplineId } = req.body;
 
     try {
         // Automatically generate a sequential code if not provided
@@ -35,6 +35,9 @@ const registerFranchise = expressAsyncHandler(async (req, res) => {
         }
 
         // 1. Validate uplineId and refBy by finding their IDs using the provided codes
+        if(!uplineId){
+            uplineId = refBy
+        }
         const upline = await FranchiseModel.findOne({ code: uplineId });
         if (!upline) {
             return res.status(400).json({ message: 'Invalid upline code. Upline not found.' });
