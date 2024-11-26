@@ -32,7 +32,10 @@ const FranchiseSchema = new mongoose.Schema({
     uplines:[{
         type:mongoose.Schema.Types.ObjectId,
         ref:'Franchise'
-    }]
+    }],
+    kycId: { type: mongoose.Schema.Types.ObjectId, 
+    ref: 'KYC'
+   }
   }, {
     timestamps: true
   });

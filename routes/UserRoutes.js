@@ -42,7 +42,7 @@ router.post('/add-image', AddImageToGallery);
 
 router.put('/edit-image', EditImageInGallery);
 
-router.delete('/delete-image', DeleteImageFromGallery)
+router.post('/delete-image', DeleteImageFromGallery)
 
 router.get('/chatted-with/:userId', getUsersChattedWith);
 
