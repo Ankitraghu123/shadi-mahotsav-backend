@@ -40,12 +40,48 @@ const UserSchema = new mongoose.Schema({
       city:{
         type:String
       },
+      religion:{
+        type:String
+      },
+      community:{
+        type:String
+      },
+      subCommunity:{
+        type:String
+      },
+      gotra:{
+        type:String
+      },
+      caste:{
+        type:String
+      },
+      dob:{
+        type:Date,
+      },
+      height:{
+        type:Number
+      },
+      weight:{
+        type:Number
+      },
+      address:{
+        type:String,
+      },
+      maritalStatus:{
+        type:String
+      },
+      about:{
+        type:String
+      },
+      hobbies:{
+        type:String
+      },
+      interests:{
+        type:String
+      },
       education:{
         type:String,
         // enum: ['High School','Associates','Technical School', 'Bachelor\'s', 'Master\'s', 'MBBS','LLB','JD','MD','PhD', 'Other']
-      },
-      about:{
-        type:String,
       },
       gallery: [
         {
@@ -67,9 +103,6 @@ const UserSchema = new mongoose.Schema({
         type:String,
         default:"user"
       },
-      dob:{
-        type:Date,
-      },
       couponCode:{
         type:String
       },
@@ -80,21 +113,6 @@ const UserSchema = new mongoose.Schema({
       profilePictureFileId:{
         type:String,
         
-      },
-      height:{
-        type:Number
-      },
-      weight:{
-        type:Number
-      },
-      fatherName:{
-        type:String
-      },
-      mothername:{
-        type:String
-      },
-      address:{
-        type:String
       },
       jobType:{
         type:String,
@@ -117,7 +135,79 @@ const UserSchema = new mongoose.Schema({
       college:{
         type:String
       },
+      fatherName:{
+        type:String
+      },
+      motherName:{
+        type:String
+      },
+      fathersOccupation:{
+        type:String
+      },
+      mothersOccupation:{
+        type:String
+      },
+      numberOfBrothers:{
+        type:String
+      },
+      brother1Name:{
+        type:String
+      },
+      brother1Occupation:{
+        type:String
+      },
+      brother1maritalStatus:{
+        type:String
+      },
+      brother2Name:{
+        type:String
+      },
+      brother2Occupation:{
+        type:String
+      },
+      brother2maritalStatus:{
+        type:String
+      },
+      numberOfSisters:{
+        type:String,
+      },
+      sister1Name:{
+        type:String
+      },
+      sister1Occupation:{
+        type:String
+      },
+      sister1maritalStatus:{
+        type:String
+      },
+      sister2Name:{
+        type:String
+      },
+      sister2Occupation:{
+        type:String
+      },
+      sister2maritalStatus:{
+        type:String
+      },
+      manglik:{
+        type:String
+      },
       zodiacSign:{
+        type:String
+      },
+      timeOfBirth:{
+        type:String
+      },
+      cityOfBirth:{
+        type:String
+      },
+      anyDisease:{
+        type:String
+      },
+      bloodGroup:{
+        type:String
+      },
+      physicalChallenges:{
         type:String
       },
       requestSended:[{
@@ -149,6 +239,10 @@ const UserSchema = new mongoose.Schema({
           },
         },
       ],
+      profileFor:{
+        type:String
+      },
+
   }, {
     timestamps: true
   });
