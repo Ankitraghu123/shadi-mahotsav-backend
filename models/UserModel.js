@@ -210,6 +210,9 @@ const UserSchema = new mongoose.Schema({
       physicalChallenges:{
         type:String
       },
+      otherPhysicallyDisabled:{
+        type:String
+      },
       requestSended:[{
         type:mongoose.Schema.Types.ObjectId,
         ref:'User'
@@ -222,9 +225,6 @@ const UserSchema = new mongoose.Schema({
         type:mongoose.Schema.Types.ObjectId,
         ref:'User'
       }],
-      maritalStatus:{
-        type:String
-      },
       plans: [
         {
           plan: {
