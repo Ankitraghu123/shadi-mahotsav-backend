@@ -1,11 +1,11 @@
-const expressAsyncHandler = require('express-async-handler');
+const asyncHandler = require('express-async-handler')
 const FranchiseModel = require('../models/FranchiseModel');
 const imagekit = require('../config/imageKit');
 const KycModel = require('../models/KycModel');
 
 
-const registerFranchise = expressAsyncHandler(async (req, res) => {
-    let { name, refBy, uplineId } = req.body;
+const registerFranchise = asyncHandler(async (req, res) => {
+    let { name, refBy, uplineId,mobileNumber,state,city,package } = req.body;
 
     try {
         // Automatically generate a sequential code if not provided
@@ -26,6 +26,10 @@ const registerFranchise = expressAsyncHandler(async (req, res) => {
                 refBy: null, // No referrer
                 uplineOf: null, // No upline
                 uplines: [], // No uplines
+                mobileNumber,
+                state,
+                city,
+                package
             });
 
             const savedFranchise = await rootFranchise.save();
@@ -112,6 +116,10 @@ const registerFranchise = expressAsyncHandler(async (req, res) => {
             refBy: referrer._id,
             uplineOf: availableParent._id,
             uplines: [...availableParent.uplines, availableParent._id], // Inherit upline chain
+            mobileNumber,
+            state,
+            city,
+            package
         });
 
         // Save the new franchise
@@ -130,6 +138,117 @@ const registerFranchise = expressAsyncHandler(async (req, res) => {
         res.status(500).json({ message: 'An error occurred while registering the franchise.' });
     }
 });
+
+const uploadProfilePicture = asyncHandler(async (req, res) => {
+  const { image, franchiseId } = req.body;
+
+  if (!image || !franchiseId) {
+      return res.status(400).json({ message: 'Image and franchiseId are required' });
+  }
+
+  try {
+      const response = await imagekit.upload({
+          file: image, 
+          fileName: `profile_${franchiseId}`, 
+          folder: "/profile_pictures" 
+      });
+
+      const franchise = await FranchiseModel.findById(franchiseId)
+      franchise.profilePicture = response.url
+      franchise.profilePictureFileId = response.fileId
+
+      await franchise.save()
+
+      res.status(200).json({
+          message: 'Profile picture uploaded successfully',
+          imageUrl: response.url,
+          fileId: response.fileId
+      });
+  } catch (error) {
+      res.status(500).json({ message: 'Image upload failed', error: error.message });
+  }
+});
+
+const editProfilePicture = asyncHandler(async (req, res) => {
+ const { franchiseId } = req.body;
+ const newImage = req.files?.newImage;
+
+ if (!newImage || !franchiseId) {
+     return res.status(400).json({ message: 'New image and franchiseId are required' });
+ }
+
+ try {
+     const franchise = await FranchiseModel.findById(franchiseId);
+     if (!franchise) {
+         return res.status(404).json({ message: 'User not found' });
+     }
+
+     if (franchise.profilePictureFileId) {
+         await imagekit.deleteFile(franchise.profilePictureFileId)
+             .catch((err) => {
+                 console.error('Failed to delete old profile picture:', err.message);
+             });
+     }
+
+     const uploadResponse = await imagekit.upload({
+         file: newImage.data,
+         fileName: `profile_${franchiseId}`,
+         folder: "/profile_pictures"
+     });
+
+     await FranchiseModel.findByIdAndUpdate(franchiseId, {
+         profilePicture: uploadResponse.url,
+         profilePictureFileId: uploadResponse.fileId
+     }, { new: true, runValidators: false });
+
+     res.status(200).json({
+         message: 'Profile picture updated successfully',
+         imageUrl: uploadResponse.url,
+         fileId: uploadResponse.fileId
+     });
+ } catch (error) {
+     res.status(500).json({ message: 'Failed to update profile picture', error: error.message });
+ }
+});
+
+
+const deleteProfilePicture = asyncHandler(async (req, res) => {
+  const { franchiseId } = req.params
+
+  if (!franchiseId) {
+      return res.status(400).json({ message: 'User ID is required' });
+  }
+
+  try {
+      // Find the franchise by ID
+      const franchise = await FranchiseModel.findById(franchiseId);
+      if (!franchise) {
+          return res.status(404).json({ message: 'User not found' });
+      }
+
+      // Check if the franchise has an existing profile picture to delete
+      if (franchise.profilePictureFileId) {
+          // Delete the profile picture from ImageKit
+          await imagekit.deleteFile(franchise.profilePictureFileId)
+              .catch((err) => {
+                  console.error('Failed to delete profile picture:', err.message);
+                  return res.status(500).json({ message: 'Failed to delete profile picture', error: err.message });
+              });
+
+          // Remove the profile picture URL and file ID from the franchise document
+          franchise.profilePicture = null;
+          franchise.profilePictureFileId = null;
+          await franchise.save();
+
+          return res.status(200).json({ message: 'Profile picture deleted successfully' });
+      } else {
+          return res.status(400).json({ message: 'No profile picture to delete' });
+      }
+  } catch (error) {
+      res.status(500).json({ message: 'Failed to delete profile picture', error: error.message });
+  }
+});
+
 
 const getFranchiseRelations = async (req, res) => {
     const { code } = req.params;
@@ -184,6 +303,7 @@ const getAllFranchise = async (req, res) => {
           city: franchise.city,
           code: franchise.code,
           uplineOf: franchise.uplineOf,
+          package:franchise.package,
           refBy: franchise.refBy,
         })),
       });
@@ -326,6 +446,89 @@ const getReferredFranchises = async (req, res) => {
       res.status(500).json({ message: 'Internal server error', error: error.message });
     }
   };
-  
 
-module.exports = {registerFranchise,getFranchiseRelations,getAllFranchise,createKYC,getReferredFranchises};
+  const editFranchise = async (req, res) => {
+    const { franchiseId } = req.params; 
+    const updateData = { ...req.body }; 
+    
+    try {
+      const updatedFranchise = await FranchiseModel.findByIdAndUpdate(
+        franchiseId,
+        updateData,
+        { new: true, runValidators: true }
+      );
+  
+      if (!updatedFranchise) {
+        return res.status(404).json({ message: 'Franchise not found' });
+      }
+  
+      return res.status(200).json({
+        message: 'Franchise updated successfully',
+        data: updatedFranchise,
+      });
+    } catch (error) {
+      console.error('Error updating franchise:', error);
+      return res.status(500).json({
+        message: 'An error occurred while updating the franchise',
+        error: error.message,
+      });
+    }
+  };
+
+  const deleteFranchise = async (req, res) => {
+    const { franchiseId } = req.params; // Franchise ID from the route parameters
+  
+    try {
+      // Find the franchise by ID and delete it
+      const deletedFranchise = await FranchiseModel.findByIdAndDelete(franchiseId);
+  
+      if (!deletedFranchise) {
+        return res.status(404).json({ message: 'Franchise not found' });
+      }
+  
+      return res.status(200).json({
+        message: 'Franchise deleted successfully',
+        data: deletedFranchise, // Return the deleted franchise's details if needed
+      });
+    } catch (error) {
+      console.error('Error deleting franchise:', error);
+      return res.status(500).json({
+        message: 'An error occurred while deleting the franchise',
+        error: error.message,
+      });
+    }
+  };
+
+  const generateRegistrationLink = (req, res) => {
+    try {
+      const { franchiseCode, uplineId, packageType } = req.body;
+  
+      if (!franchiseCode) {
+        return res.status(400).json({ error: 'Franchise Code (refId) is required.' });
+      }
+  
+      const baseURL = 'https://example.com/register';
+  
+      const queryParams = new URLSearchParams();
+      queryParams.append('refId', franchiseCode); // Mandatory refId (current franchise code)
+  
+      if (uplineId) {
+        queryParams.append('uplineId', uplineId);
+      }else{
+        queryParams.append('uplineId', franchiseCode);
+      }
+
+      if (packageType) {
+        queryParams.append('package', packageType);
+      }
+  
+      const registrationLink = `${baseURL}?${queryParams.toString()}`;
+  
+      return res.status(200).json({ registrationLink });
+    } catch (error) {
+      console.error('Error generating registration link:', error);
+      return res.status(500).json({ error: 'Internal Server Error' });
+    }
+  };
+
+module.exports = {registerFranchise,uploadProfilePicture,editProfilePicture,deleteProfilePicture,getFranchiseRelations,getAllFranchise,createKYC,getReferredFranchises,editFranchise,deleteFranchise,generateRegistrationLink};

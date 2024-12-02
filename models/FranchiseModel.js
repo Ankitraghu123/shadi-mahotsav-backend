@@ -17,6 +17,17 @@ const FranchiseSchema = new mongoose.Schema({
       code :{
         type:String
       },
+      profilePicture:{
+        type:String,
+        default:'https://www.shutterstock.com/image-vector/user-profile-icon-vector-avatar-600nw-2247726673.jpg'
+      },
+      profilePictureFileId:{
+        type:String,
+        
+      },
+      package:{
+        type:String,
+      },
     refBy:{
         type:mongoose.Schema.Types.ObjectId,
         ref:'Franchise'
