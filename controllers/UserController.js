@@ -4,23 +4,41 @@ const {generateRefreshToken} = require('../config/refreshToken')
 const UserModel = require('../models/UserModel')
 const imagekit = require('../config/imageKit');
 const ChatModel = require('../models/ChatModel');
+const FranchiseModel = require('../models/FranchiseModel');
 
 
 const Register = asyncHandler(async (req, res) => {
-   try {
-     const existingUser = await UserModel.findOne({ email: req.body.email });
-     if (existingUser) {
-       return res.status(400).json({ message: 'Email is already registered' });
-     }
- 
-     const newUser = await UserModel.create(req.body);
- 
-     const token = generateToken(newUser._id);
- 
-     res.status(201).json({ user: newUser, token });
-   } catch (error) {
-     res.status(500).json({ message: 'Registration failed', error: error.message });
-   }
+  try {
+    // Check if the user already exists
+    const existingUser = await UserModel.findOne({ email: req.body.email });
+    if (existingUser) {
+      return res.status(400).json({ message: 'Email is already registered' });
+    }
+
+    // Create the new user
+    const newUser = await UserModel.create(req.body);
+
+    // Check if a coupon code is provided
+    const { couponCode } = req.body;
+    if (couponCode) {
+      // Find the franchise based on the coupon code
+      const franchise = await FranchiseModel.findOne({code: couponCode });
+      if (!franchise) {
+        return res.status(400).json({ message: 'Invalid coupon code' });
+      }
+
+      // Push the new user's ID into the franchise's memberRef array
+      franchise.memberRef.push(newUser._id);
+      await franchise.save();
+    }
+
+    // Generate a token for the user
+    const token = generateToken(newUser._id);
+
+    res.status(201).json({ user: newUser, token });
+  } catch (error) {
+    res.status(500).json({ message: 'Registration failed', error: error.message });
+  }
 });
 
 

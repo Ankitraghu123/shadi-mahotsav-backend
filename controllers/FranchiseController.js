@@ -2,10 +2,11 @@ const asyncHandler = require('express-async-handler')
 const FranchiseModel = require('../models/FranchiseModel');
 const imagekit = require('../config/imageKit');
 const KycModel = require('../models/KycModel');
+const jwt = require('jsonwebtoken')
 
 
 const registerFranchise = asyncHandler(async (req, res) => {
-    let { name, refBy, uplineId,mobileNumber,state,city,package } = req.body;
+    let { name,password, refBy, uplineId,mobileNumber,country,state,city,package,email } = req.body;
 
     try {
         // Automatically generate a sequential code if not provided
@@ -18,6 +19,13 @@ const registerFranchise = asyncHandler(async (req, res) => {
             code = 'F1'; // Default to F1 if no franchise exists
         }
 
+        let couponWallet = 0;
+        if (package.toLowerCase() === 'silver') {
+            couponWallet = 354;
+        } else if (package.toLowerCase() === 'gold') {
+            couponWallet = 5310;
+        }
+
         // If no uplineId and refBy are provided, create the root franchise
         if (!uplineId && !refBy) {
             const rootFranchise = new FranchiseModel({
@@ -27,9 +35,13 @@ const registerFranchise = asyncHandler(async (req, res) => {
                 uplineOf: null, // No upline
                 uplines: [], // No uplines
                 mobileNumber,
+                country,
                 state,
                 city,
-                package
+                package,
+                password,
+                email,
+                couponWallet
             });
 
             const savedFranchise = await rootFranchise.save();
@@ -117,9 +129,13 @@ const registerFranchise = asyncHandler(async (req, res) => {
             uplineOf: availableParent._id,
             uplines: [...availableParent.uplines, availableParent._id], // Inherit upline chain
             mobileNumber,
+            country,
             state,
             city,
-            package
+            package,
+            password,
+            email,
+            couponWallet
         });
 
         // Save the new franchise
@@ -138,6 +154,72 @@ const registerFranchise = asyncHandler(async (req, res) => {
         res.status(500).json({ message: 'An error occurred while registering the franchise.' });
     }
 });
+
+const loginFranchise = asyncHandler(async (req, res) => {
+  const { email, password } = req.body;
+
+  try {
+      // 1. Validate input
+      if (!email || !password) {
+          return res.status(400).json({ message: 'Mobile number and password are required.' });
+      }
+
+      // 2. Find franchise by mobile number
+      const franchise = await FranchiseModel.findOne({ email });
+      if (!franchise) {
+          return res.status(401).json({ message: 'Invalid credentials. Franchise not found.' });
+      }
+
+      // 3. Compare plain text password
+      if (franchise.password !== password) {
+          return res.status(401).json({ message: 'Invalid credentials. Password is incorrect.' });
+      }
+
+      // 4. Generate JWT token
+      const token = jwt.sign(
+          { id: franchise._id, email: franchise.email },
+          process.env.JWT_SECRET,
+          { expiresIn: '7d' } // Token valid for 7 days
+      );
+
+      // 5. Send response with token and franchise details
+      res.status(200).json({
+          message: 'Login successful.',
+          token,
+          franchise: {
+              id: franchise._id,
+              name: franchise.name,
+              code: franchise.code,
+              mobileNumber: franchise.mobileNumber,
+              state: franchise.state,
+              city: franchise.city,
+              package: franchise.package,
+              email:franchise.email
+          },
+      });
+  } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: 'An error occurred while logging in.' });
+  }
+});
+
+const getSingleFranchise = asyncHandler(async (req,res) => {
+  try{
+    const {id} = req.params
+    const franchise = await FranchiseModel.findById(id).populate('kycId')
+
+    if(!franchise){
+      res.status(400).json({ message: 'Franchise not found' });
+    }
+
+    res.status(200).json({
+      message: 'fetched franchise successfully',
+      franchise
+  });
+  }catch(err){
+    res.status(500).json({ message: 'An error occurred while fetchinmg franchise' });
+  }
+})
 
 const uploadProfilePicture = asyncHandler(async (req, res) => {
   const { image, franchiseId } = req.body;
@@ -236,7 +318,7 @@ const deleteProfilePicture = asyncHandler(async (req, res) => {
               });
 
           // Remove the profile picture URL and file ID from the franchise document
-          franchise.profilePicture = null;
+          franchise.profilePicture = 'https://www.shutterstock.com/image-vector/user-profile-icon-vector-avatar-600nw-2247726673.jpg';
           franchise.profilePictureFileId = null;
           await franchise.save();
 
@@ -286,7 +368,8 @@ const getAllFranchise = async (req, res) => {
       // Fetch all franchises with their relations
       const franchises = await FranchiseModel.find()
         .populate("uplineOf", "code") // Populate uplineOf with its code
-        .populate("refBy", "code");   // Populate refBy with its code
+        .populate("refBy", "code")
+        .populate("kycId")   // Populate refBy with its code
   
       if (!franchises.length) {
         return res.status(404).json({ message: "No franchises found." });
@@ -295,130 +378,156 @@ const getAllFranchise = async (req, res) => {
       // Respond with franchises and their populated relations
       res.status(200).json({
         message: "Franchises retrieved successfully.",
-        franchises: franchises.map((franchise) => ({
-          id: franchise._id,
-          name: franchise.name,
-          mobileNumber: franchise.mobileNumber,
-          state: franchise.state,
-          city: franchise.city,
-          code: franchise.code,
-          uplineOf: franchise.uplineOf,
-          package:franchise.package,
-          refBy: franchise.refBy,
-        })),
+        franchises: franchises
       });
     } catch (error) {
       res.status(500).json({ message: "Failed to retrieve franchises.", error: error.message });
     }
   };
 
-const createKYC = async (req, res) => {
-  try {
-    const { franchiseId } = req.params; // Franchise ID
-    const {
-      aadharCardNumber,
-      panCardNumber,
-      bankName,
-      accountType,
-      accountHolderName,
-      accountNumber,
-      reenterAccountNumber,
-      ifscCode,
-      dob,
-      gender,
-      email,
-      address,
-      maritalStatus,
-      nomineeName,
-      nomineeRelationship,
-      nomineeDob
-    } = req.body;
-
-    if (!franchiseId) {
-      return res.status(400).json({ message: 'Franchise ID is required' });
-    }
-
-    const franchise = await FranchiseModel.findById(franchiseId);
-    if (!franchise) {
-      return res.status(404).json({ message: 'Franchise not found' });
-    }
-
-    const uploadFileToImageKit = async (file) => {
-        try {
-            const response = await imagekit.upload({
-                file: file.data, // Pass file buffer
-                fileName: file.name
-            });
-            return response.url;
-        } catch (error) {
-            console.error('Error uploading to ImageKit:', error.message);
-            throw error;
-        }
-    };
-    
-
-    const aadharCardFront = req.files?.aadharCardFront
-      ? await uploadFileToImageKit(req.files.aadharCardFront)
-      : null;
-    const aadharCardBack = req.files?.aadharCardBack
-      ? await uploadFileToImageKit(req.files.aadharCardBack)
-      : null;
-    const panCardFront = req.files?.panCardFront
-      ? await uploadFileToImageKit(req.files.panCardFront)
-      : null;
-    const panCardBack = req.files?.panCardBack
-      ? await uploadFileToImageKit(req.files.panCardBack)
-      : null;
-    const accountPassbookPhoto = req.files?.accountPassbookPhoto
-      ? await uploadFileToImageKit(req.files.accountPassbookPhoto)
-      : null;
-    const nomineeAadharFront = req.files?.nomineeAadharFront
-      ? await uploadFileToImageKit(req.files.nomineeAadharFront)
-      : null;
-    const nomineeAadharBack = req.files?.nomineeAadharBack
-      ? await uploadFileToImageKit(req.files.nomineeAadharBack)
-      : null;
-
-    // Create KYC document
-    const newKYC = new KycModel({
-      aadharCardNumber,
-      aadharCardFront,
-      aadharCardBack,
-      panCardNumber,
-      panCardFront,
-      panCardBack,
-      bankName,
-      accountType,
-      accountHolderName,
-      accountNumber,
-      reenterAccountNumber,
-      ifscCode,
-      dob,
-      gender,
-      email,
-      address,
-      maritalStatus,
-      nominee: {
-        aadharCardFront: nomineeAadharFront,
-        aadharCardBack: nomineeAadharBack,
+  const createKYC = async (req, res) => {
+    try {
+      console.log(req.body);
+      console.log(req.files);
+  
+      const {
+        aadharCardNumber,
+        panCardNumber,
+        bankName,
+        accountType,
+        accountHolderName,
+        accountNumber,
+        reenterAccountNumber,
+        ifscCode,
+        dob,
+        gender,
+        email,
+        address,
+        maritalStatus,
         nomineeName,
         nomineeRelationship,
-        nomineeDob
+        nomineeDob,
+        franchiseId,
+      } = req.body;
+  
+      if (!franchiseId) {
+        return res.status(400).json({ message: 'Franchise ID is required' });
       }
-    });
-
-    const savedKYC = await newKYC.save();
-
-    // Associate KYC with Franchise
-    franchise.kycId = savedKYC._id;
-    await franchise.save();
-
-    res.status(201).json({ message: 'KYC created successfully', kyc: savedKYC });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Internal server error', error: error.message });
-  }
-};
+  
+      const franchise = await FranchiseModel.findById(franchiseId);
+      if (!franchise) {
+        return res.status(404).json({ message: 'Franchise not found' });
+      }
+  
+      const uploadFileToImageKit = async (file) => {
+        try {
+          const response = await imagekit.upload({
+            file: file.data, // Pass file buffer
+            fileName: file.name,
+          });
+          return response.url;
+        } catch (error) {
+          console.error('Error uploading to ImageKit:', error.message);
+          throw error;
+        }
+      };
+  
+      const aadharCardFront = req.files?.aadharCardFront
+        ? await uploadFileToImageKit(req.files.aadharCardFront)
+        : null;
+      const aadharCardBack = req.files?.aadharCardBack
+        ? await uploadFileToImageKit(req.files.aadharCardBack)
+        : null;
+      const panCardFront = req.files?.panCardFront
+        ? await uploadFileToImageKit(req.files.panCardFront)
+        : null;
+      const panCardBack = req.files?.panCardBack
+        ? await uploadFileToImageKit(req.files.panCardBack)
+        : null;
+      const accountPassbookPhoto = req.files?.accountPassbookPhoto
+        ? await uploadFileToImageKit(req.files.accountPassbookPhoto)
+        : null;
+      const nomineeAadharFront = req.files?.nomineeAadharFront
+        ? await uploadFileToImageKit(req.files.nomineeAadharFront)
+        : null;
+      const nomineeAadharBack = req.files?.nomineeAadharBack
+        ? await uploadFileToImageKit(req.files.nomineeAadharBack)
+        : null;
+  
+      let kyc = await KycModel.findById(franchise.kycId);
+  
+      if (kyc) {
+        // Update existing KYC
+        const updatedData = {
+          ...(aadharCardNumber && { aadharCardNumber }),
+          ...(aadharCardFront && { aadharCardFront }),
+          ...(aadharCardBack && { aadharCardBack }),
+          ...(panCardNumber && { panCardNumber }),
+          ...(panCardFront && { panCardFront }),
+          ...(panCardBack && { panCardBack }),
+          ...(bankName && { bankName }),
+          ...(accountType && { accountType }),
+          ...(accountHolderName && { accountHolderName }),
+          ...(accountNumber && { accountNumber }),
+          ...(reenterAccountNumber && { reenterAccountNumber }),
+          ...(ifscCode && { ifscCode }),
+          ...(dob && { dob }),
+          ...(gender && { gender }),
+          ...(email && { email }),
+          ...(address && { address }),
+          ...(maritalStatus && { maritalStatus }),
+          ...(nomineeName && { 'nominee.nomineeName': nomineeName }),
+          ...(nomineeRelationship && { 'nominee.nomineeRelationship': nomineeRelationship }),
+          ...(nomineeDob && { 'nominee.nomineeDob': nomineeDob }),
+          ...(nomineeAadharFront && { 'nominee.aadharCardFront': nomineeAadharFront }),
+          ...(nomineeAadharBack && { 'nominee.aadharCardBack': nomineeAadharBack }),
+        };
+  
+        kyc = await KycModel.findByIdAndUpdate(franchise.kycId, updatedData, { new: true });
+        return res.status(200).json({ message: 'KYC updated successfully', kyc });
+      }
+  
+      // Create a new KYC if none exists
+      const newKYC = new KycModel({
+        aadharCardNumber,
+        aadharCardFront,
+        aadharCardBack,
+        panCardNumber,
+        panCardFront,
+        panCardBack,
+        bankName,
+        accountType,
+        accountHolderName,
+        accountNumber,
+        reenterAccountNumber,
+        ifscCode,
+        dob,
+        gender,
+        email,
+        address,
+        maritalStatus,
+        nominee: {
+          aadharCardFront: nomineeAadharFront,
+          aadharCardBack: nomineeAadharBack,
+          nomineeName,
+          nomineeRelationship,
+          nomineeDob,
+        },
+      });
+  
+      const savedKYC = await newKYC.save();
+  
+      // Associate new KYC with Franchise
+      franchise.kycId = savedKYC._id;
+      await franchise.save();
+  
+      res.status(201).json({ message: 'KYC created successfully', kyc: savedKYC });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: 'Internal server error', error: error.message });
+    }
+  };
+  
 
 const getReferredFranchises = async (req, res) => {
     try {
@@ -531,4 +640,47 @@ const getReferredFranchises = async (req, res) => {
     }
   };
 
-module.exports = {registerFranchise,uploadProfilePicture,editProfilePicture,deleteProfilePicture,getFranchiseRelations,getAllFranchise,createKYC,getReferredFranchises,editFranchise,deleteFranchise,generateRegistrationLink};
+  const getFranchiseUplines = async (franchiseId) => {
+    const franchise = await FranchiseModel.findById(franchiseId).populate('uplineOf').populate('uplines');
+
+    if (!franchise) return null;
+
+    const uplineData = {
+        _id: franchise._id,
+        name: franchise.name,
+        mobileNumber: franchise.mobileNumber,
+        profilePicture: franchise.profilePicture,
+        package: franchise.package,
+        children: [],
+    };
+
+    // Recursively fetch the uplines if any
+    if (franchise.uplines && franchise.uplines.length > 0) {
+        for (const upline of franchise.uplines) {
+            const uplineInfo = await getFranchiseUplines(upline._id);
+            uplineData.children.push(uplineInfo);
+        }
+    }
+
+    return uplineData;
+};
+
+// Controller to handle the API request for upline tree
+const getUplineTree = async (req, res) => {
+    try {
+        const { franchiseId } = req.params;
+
+        const uplineTree = await getFranchiseUplines(franchiseId);
+
+        if (!uplineTree) {
+            return res.status(404).json({ message: 'Franchise not found' });
+        }
+
+        res.status(200).json(uplineTree);
+    } catch (error) {
+        console.error('Error fetching upline tree:', error);
+        res.status(500).json({ message: 'Error fetching upline tree' });
+    }
+};
+
+module.exports = {registerFranchise,uploadProfilePicture,editProfilePicture,deleteProfilePicture,getFranchiseRelations,getAllFranchise,createKYC,getReferredFranchises,editFranchise,deleteFranchise,generateRegistrationLink,getUplineTree,loginFranchise,getSingleFranchise};

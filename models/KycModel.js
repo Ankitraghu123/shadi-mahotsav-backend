@@ -1,12 +1,12 @@
 const mongoose = require('mongoose');
 
 const kycSchema = new mongoose.Schema({
-  aadharCardNumber: { type: String, unique: true },
+  aadharCardNumber: { type: String,},
   aadharCardFront: { type: String },
   aadharCardBack: { type: String },
   aadharCardApproved: { type: Boolean, default: false },
 
-  panCardNumber: { type: String, unique: true },
+  panCardNumber: { type: String,  },
   panCardFront: { type: String },
   panCardBack: { type: String },
   panCardApproved: { type: Boolean, default: false }, 
@@ -20,7 +20,7 @@ const kycSchema = new mongoose.Schema({
   accountPassbookPhoto: { type: String },
 
   dob: { type: Date },
-  gender: { type: String, enum: ['Male', 'Female', 'Other'] },
+  gender: { type: String},
   email: { type: String, unique: true },
   phone: { type: String },
   address: { type: String },

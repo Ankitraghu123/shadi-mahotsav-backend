@@ -5,13 +5,25 @@ const FranchiseSchema = new mongoose.Schema({
     name: {
         type: String,
       },
+      password:{
+        type:String,
+      },
+      email:{
+        type:String,
+      },
       mobileNumber: {
         type: Number,
+      },
+      country:{
+        type:String,
       },
       state:{
         type:String,
       },
       city:{
+        type:String,
+      },
+      pinCode:{
         type:String,
       },
       code :{
@@ -27,6 +39,15 @@ const FranchiseSchema = new mongoose.Schema({
       },
       package:{
         type:String,
+      },
+      memberRef:[
+        {
+          type:mongoose.Schema.Types.ObjectId,
+          ref:'User'
+        }
+      ],
+      couponWallet:{
+        type:Number
       },
     refBy:{
         type:mongoose.Schema.Types.ObjectId,
