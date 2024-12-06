@@ -15,21 +15,92 @@ const Register = asyncHandler(async (req, res) => {
       return res.status(400).json({ message: 'Email is already registered' });
     }
 
-    // Create the new user
-    const newUser = await UserModel.create(req.body);
+    // Extract request data
+    const { couponCode, franchiseId, ...userData } = req.body;
 
-    // Check if a coupon code is provided
-    const { couponCode } = req.body;
+    // Create the new user
+    const newUser = await UserModel.create(userData);
+
+    let selectedPlan = null;
+    const planIds = {
+      '1 Month': '673b0b53373c1f70379a481b',
+      '3 Month': '673b0b5d373c1f70379a481d',
+      '1 Year': '673b0b6d373c1f70379a481f',
+    };
+
     if (couponCode) {
-      // Find the franchise based on the coupon code
-      const franchise = await FranchiseModel.findOne({code: couponCode });
+      // Find the franchise that has this coupon code
+      const franchise = await FranchiseModel.findOne({
+        $or: [
+          { couponOneMonth: couponCode },
+          { couponThreeMonth: couponCode },
+          { couponOneYear: couponCode },
+        ],
+      });
+
       if (!franchise) {
         return res.status(400).json({ message: 'Invalid coupon code' });
       }
 
-      // Push the new user's ID into the franchise's memberRef array
-      franchise.memberRef.push(newUser._id);
+      // Determine the plan and deduct wallet amount
+      let planType = null;
+      if (franchise.couponOneMonth === couponCode) {
+        planType = '1 Month';
+        franchise.couponWallet -= 150;
+      } else if (franchise.couponThreeMonth === couponCode) {
+        planType = '3 Month';
+        franchise.couponWallet -= 300;
+      } else if (franchise.couponOneYear === couponCode) {
+        planType = '1 Year';
+        franchise.couponWallet -= 1500;
+      }
+
+      // Check if the wallet has enough balance
+      if (franchise.couponWallet < 0) {
+        return res.status(400).json({
+          message: 'Insufficient balance in franchise wallet to apply this coupon.',
+        });
+      }
+
+      // Calculate purchase and expiry dates
+      const currentDate = new Date();
+      let expiryDate = new Date(currentDate);
+      if (planType === '1 Month') {
+        expiryDate.setMonth(expiryDate.getMonth() + 1);
+      } else if (planType === '3 Month') {
+        expiryDate.setMonth(expiryDate.getMonth() + 3);
+      } else if (planType === '1 Year') {
+        expiryDate.setFullYear(expiryDate.getFullYear() + 1);
+      }
+
+      // Add the plan to the user's plans array
+      selectedPlan = {
+        plan: planIds[planType], // Map the plan type to the respective ObjectId
+        purchaseDate: currentDate,
+        expiryDate,
+      };
+      newUser.plans.push(selectedPlan);
+      newUser.refBy = franchise?._id
+      await newUser.save()
+      // Update the franchise with the new user reference and save
+      franchise.upgradeMemberRef.push(newUser._id);
       await franchise.save();
+    }
+
+    if (franchiseId) {
+      const franchise = await FranchiseModel.findById(franchiseId);
+      if (!franchise) {
+        return res.status(404).json({ message: "Franchise not found" });
+      }
+
+      franchise.retailMemberRef.push(newUser._id);
+      newUser.refBy = franchiseId
+      await newUser.save()
+      await franchise.save();
+    }
+
+    if (selectedPlan) {
+      await newUser.save();
     }
 
     // Generate a token for the user
@@ -40,7 +111,6 @@ const Register = asyncHandler(async (req, res) => {
     res.status(500).json({ message: 'Registration failed', error: error.message });
   }
 });
-
 
 const Login = asyncHandler(async (req, res) => {
    const { email, password } = req.body;
@@ -63,7 +133,6 @@ const Login = asyncHandler(async (req, res) => {
      res.status(500).json({ message: 'Login failed', error: error.message });
    }
  });
-
 
  const DeleteMember = asyncHandler(async (req, res) => {
   try {
@@ -169,7 +238,6 @@ const editProfilePicture = asyncHandler(async (req, res) => {
   }
 });
 
-
 const deleteProfilePicture = asyncHandler(async (req, res) => {
    const { userId } = req.params
 
@@ -206,8 +274,6 @@ const deleteProfilePicture = asyncHandler(async (req, res) => {
        res.status(500).json({ message: 'Failed to delete profile picture', error: error.message });
    }
 });
-
-
 
  const GetSingleUser = asyncHandler(async (req, res) => {
    const { id} = req.params;
@@ -535,7 +601,6 @@ const deleteProfilePicture = asyncHandler(async (req, res) => {
     res.status(500).json({ message: 'Failed to find matching profiles', error: error.message });
   }
 });
-
 
 const ProfileCompletion = asyncHandler(async (req, res) => {
   try {

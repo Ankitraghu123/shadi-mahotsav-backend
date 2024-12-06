@@ -242,6 +242,10 @@ const UserSchema = new mongoose.Schema({
       profileFor:{
         type:String
       },
+      refBy:{
+        type:mongoose.Schema.Types.ObjectId,
+        ref:'Franchise'
+      }
 
   }, {
     timestamps: true

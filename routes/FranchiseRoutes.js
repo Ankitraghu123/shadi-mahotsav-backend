@@ -1,5 +1,5 @@
 const express = require('express')
-const {registerFranchise, getFranchiseRelations, getAllFranchise, createKYC, getReferredFranchises,uploadProfilePicture, editProfilePicture, deleteProfilePicture, editFranchise, deleteFranchise, generateRegistrationLink, getUplineTree, loginFranchise, getSingleFranchise} = require('../controllers/FranchiseController')
+const {registerFranchise, getFranchiseRelations, getAllFranchise, createKYC, getReferredFranchises,uploadProfilePicture, editProfilePicture, deleteProfilePicture, editFranchise, deleteFranchise, generateRegistrationLink, getUplineTree, loginFranchise, getSingleFranchise, requestPayout, getPayoutsByFranchise} = require('../controllers/FranchiseController')
 const router = express.Router()
 
 router.post('/register',registerFranchise)
@@ -32,5 +32,9 @@ router.delete('/delete-franchise/:franchiseId',deleteFranchise)
 router.post('/generate-registration-link',generateRegistrationLink)
 
 router.get('/upline-tree/:franchiseId', getUplineTree);
+
+router.post('/request-payout', requestPayout);
+
+router.get('/payouts/:franchiseId', getPayoutsByFranchise);
 
 module.exports = router

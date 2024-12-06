@@ -40,7 +40,13 @@ const FranchiseSchema = new mongoose.Schema({
       package:{
         type:String,
       },
-      memberRef:[
+      upgradeMemberRef:[
+        {
+          type:mongoose.Schema.Types.ObjectId,
+          ref:'User'
+        }
+      ],
+      retailMemberRef:[
         {
           type:mongoose.Schema.Types.ObjectId,
           ref:'User'
@@ -49,6 +55,19 @@ const FranchiseSchema = new mongoose.Schema({
       couponWallet:{
         type:Number
       },
+      retailWallet:{
+        type:Number,
+      },
+      couponOneMonth:{
+        type:String
+      },
+      couponThreeMonth:{
+        type:String
+      },
+      couponOneYear:{
+        type:String
+      },
+     
     refBy:{
         type:mongoose.Schema.Types.ObjectId,
         ref:'Franchise'
@@ -67,7 +86,13 @@ const FranchiseSchema = new mongoose.Schema({
     }],
     kycId: { type: mongoose.Schema.Types.ObjectId, 
     ref: 'KYC'
-   }
+   },
+   payOutDetails:[
+    {
+      type:mongoose.Schema.Types.ObjectId,
+      ref:'PayOut'
+    }
+   ]
   }, {
     timestamps: true
   });

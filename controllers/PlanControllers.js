@@ -3,6 +3,7 @@ const PlanModel = require('../models/PlanModel');
 const UserModel = require('../models/UserModel');
 const Razorpay = require('razorpay');
 const crypto = require('crypto');
+const FranchiseModel = require('../models/FranchiseModel');
 
 const addPlan =asyncHandler( async (req, res) => {
   try {
@@ -57,43 +58,66 @@ const getAllPlan =asyncHandler( async (req, res) => {
   
 
   const verifyPayment = asyncHandler(async (req, res) => {
-    const { paymentId, orderId, userId, planId } = req.body;
-  
-    // Check if orderId and paymentId are provided in the request
+    let { paymentId, orderId, userId, planId, amount } = req.body;
+    amount = amount/100
+    // Validate input
     if (!orderId || !paymentId) {
       return res.status(400).json({ message: 'Order ID or Payment ID missing' });
     }
+    if (!amount || isNaN(amount)) {
+      return res.status(400).json({ message: 'Invalid amount' });
+    }
   
     try {
-      // Assuming payment is verified if orderId and paymentId are present
       const user = await UserModel.findById(userId);
       const plan = await PlanModel.findById(planId);
   
-      // Check if the user and plan exist
       if (!user || !plan) {
         return res.status(404).json({ message: 'User or plan not found' });
       }
   
-      // Set purchase date and expiry date
+      // Set purchase and expiry dates
       const purchaseDate = new Date();
       const expiryDate = new Date();
-      if(plan.name == '1Month'){
+      if (plan.name === '1Month') {
         expiryDate.setMonth(expiryDate.getMonth() + 1);
-      }else if (plan.name == '3 Month'){
+      } else if (plan.name === '3 Month') {
         expiryDate.setMonth(expiryDate.getMonth() + 3);
-      }else  {
-        expiryDate.setMonth(expiryDate.getMonth() + 12); 
+      } else {
+        expiryDate.setMonth(expiryDate.getMonth() + 12);
       }
-       
   
-      // Add the plan to the user's plans array
+      // Add plan to user
       user.plans.push({
         plan: plan._id,
         purchaseDate,
         expiryDate,
       });
-  
       await user.save();
+  
+      // Process franchise commissions
+      if (user.refBy) {
+        const franchise = await FranchiseModel.findById(user.refBy);
+        if (franchise) {
+          const franchiseAmount = (amount * 70) / 100;
+  
+          // Ensure retailWallet is a number
+          franchise.retailWallet = (franchise.retailWallet || 0) + franchiseAmount;
+          await franchise.save();
+  
+          // Process parent franchise commission
+          if (franchise.refBy) {
+            const parentFranchise = await FranchiseModel.findById(franchise.refBy);
+            if (parentFranchise) {
+              const parentAmount = (amount * 10) / 100;
+  
+              // Ensure retailWallet is a number
+              parentFranchise.retailWallet = (parentFranchise.retailWallet || 0) + parentAmount;
+              await parentFranchise.save();
+            }
+          }
+        }
+      }
   
       res.json({ success: true });
     } catch (err) {
@@ -101,7 +125,7 @@ const getAllPlan =asyncHandler( async (req, res) => {
       res.status(500).json({ message: 'Error verifying payment' });
     }
   });
-
+  
 
   const findUsersWithActivePlans = asyncHandler(async (req, res) => {
     try {

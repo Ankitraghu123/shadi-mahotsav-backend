@@ -2,8 +2,18 @@ const asyncHandler = require('express-async-handler')
 const FranchiseModel = require('../models/FranchiseModel');
 const imagekit = require('../config/imageKit');
 const KycModel = require('../models/KycModel');
-const jwt = require('jsonwebtoken')
+const jwt = require('jsonwebtoken');
+// const { request } = require('express');
+const PayOutModel = require('../models/PayOutModel');
 
+const generateUniqueCoupon = () => {
+  const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let coupon = '';
+  for (let i = 0; i < 5; i++) { // Generate a 10-character unique code
+      coupon += characters.charAt(Math.floor(Math.random() * characters.length));
+  }
+  return coupon;
+};
 
 const registerFranchise = asyncHandler(async (req, res) => {
     let { name,password, refBy, uplineId,mobileNumber,country,state,city,package,email } = req.body;
@@ -41,7 +51,10 @@ const registerFranchise = asyncHandler(async (req, res) => {
                 package,
                 password,
                 email,
-                couponWallet
+                couponWallet,
+                couponOneMonth: generateUniqueCoupon(),
+                couponThreeMonth: generateUniqueCoupon(),
+                couponOneYear: generateUniqueCoupon(),
             });
 
             const savedFranchise = await rootFranchise.save();
@@ -135,7 +148,10 @@ const registerFranchise = asyncHandler(async (req, res) => {
             package,
             password,
             email,
-            couponWallet
+            couponWallet,
+            couponOneMonth: generateUniqueCoupon(),
+            couponThreeMonth: generateUniqueCoupon(),
+            couponOneYear: generateUniqueCoupon(),
         });
 
         // Save the new franchise
@@ -616,7 +632,7 @@ const getReferredFranchises = async (req, res) => {
         return res.status(400).json({ error: 'Franchise Code (refId) is required.' });
       }
   
-      const baseURL = 'https://example.com/register';
+      const baseURL = 'http://localhost:5173/register-franchise';
   
       const queryParams = new URLSearchParams();
       queryParams.append('refId', franchiseCode); // Mandatory refId (current franchise code)
@@ -683,4 +699,73 @@ const getUplineTree = async (req, res) => {
     }
 };
 
-module.exports = {registerFranchise,uploadProfilePicture,editProfilePicture,deleteProfilePicture,getFranchiseRelations,getAllFranchise,createKYC,getReferredFranchises,editFranchise,deleteFranchise,generateRegistrationLink,getUplineTree,loginFranchise,getSingleFranchise};
+const requestPayout = async (req, res) => {
+  try {
+    const { franchiseId } = req.body; // Get franchise ID from the request body
+    const { amount } = req.body; // Amount to be requested
+
+    // Validate the input
+    if (!franchiseId || !amount) {
+      return res.status(400).json({ success: false, message: 'Franchise ID and amount are required.' });
+    }
+
+    // Find the franchise
+    const franchise = await FranchiseModel.findById(franchiseId);
+    if (!franchise) {
+      return res.status(404).json({ success: false, message: 'Franchise not found.' });
+    }
+
+    // Create a new payout request
+    const newPayout = new PayOutModel({
+      amount,
+      status: false, // Payout is initially pending
+    });
+
+    // Save the payout
+    const savedPayout = await newPayout.save();
+
+    // Add the payout to the franchise's payOutDetails array
+    franchise.retailWallet = 0
+    franchise.payOutDetails.push(savedPayout._id);
+    await franchise.save();
+
+    return res.status(201).json({
+      success: true,
+      message: 'Payout request created successfully.',
+      payout: savedPayout,
+    });
+  } catch (error) {
+    console.error('Error requesting payout:', error);
+    return res.status(500).json({ success: false, message: 'Internal server error.' });
+  }
+};
+
+const getPayoutsByFranchise = async (req, res) => {
+  try {
+    const { franchiseId } = req.params; // Extract franchiseId from route params
+
+    // Validate input
+    if (!franchiseId) {
+      return res.status(400).json({ success: false, message: 'Franchise ID is required.' });
+    }
+
+    // Find the franchise and populate the payOutDetails
+    const franchise = await FranchiseModel.findById(franchiseId).populate('payOutDetails');
+
+    if (!franchise) {
+      return res.status(404).json({ success: false, message: 'Franchise not found.' });
+    }
+
+    // Return the populated payouts
+    return res.status(200).json({
+      success: true,
+      message: 'Payouts retrieved successfully.',
+      payouts: franchise.payOutDetails,
+    });
+  } catch (error) {
+    console.error('Error fetching payouts:', error);
+    return res.status(500).json({ success: false, message: 'Internal server error.' });
+  }
+};
+
+module.exports = {registerFranchise,uploadProfilePicture,editProfilePicture,deleteProfilePicture,getFranchiseRelations,getAllFranchise,createKYC,getReferredFranchises,editFranchise,deleteFranchise,generateRegistrationLink,getUplineTree,loginFranchise,getSingleFranchise,requestPayout,getPayoutsByFranchise};
