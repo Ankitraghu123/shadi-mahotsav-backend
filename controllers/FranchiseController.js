@@ -161,8 +161,15 @@ const registerFranchise = asyncHandler(async (req, res) => {
         availableParent.refTo.push(savedFranchise._id);
         await availableParent.save();
 
+        const token = jwt.sign(
+          { id: savedFranchise._id, email: savedFranchise.email },
+          process.env.JWT_SECRET,
+          { expiresIn: '7d' } // Token valid for 7 days
+      );
+
         return res.status(201).json({
             message: 'Franchisee registered successfully.',
+            token,
             franchise: savedFranchise,
         });
     } catch (error) {
@@ -203,7 +210,7 @@ const loginFranchise = asyncHandler(async (req, res) => {
           message: 'Login successful.',
           token,
           franchise: {
-              id: franchise._id,
+              _id: franchise._id,
               name: franchise.name,
               code: franchise.code,
               mobileNumber: franchise.mobileNumber,

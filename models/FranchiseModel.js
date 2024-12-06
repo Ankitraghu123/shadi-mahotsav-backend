@@ -10,6 +10,7 @@ const FranchiseSchema = new mongoose.Schema({
       },
       email:{
         type:String,
+        unique:true
       },
       mobileNumber: {
         type: Number,
