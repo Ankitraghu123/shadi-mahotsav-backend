@@ -97,12 +97,22 @@ const getAllPlan =asyncHandler( async (req, res) => {
   
       // Process franchise commissions
       if (user.refBy) {
-        const franchise = await FranchiseModel.findById(user.refBy);
+        const franchise = await FranchiseModel.findById(user.refBy).populate("kycId");
         if (franchise) {
           const franchiseAmount = (amount * 70) / 100;
   
           // Ensure retailWallet is a number
           franchise.retailWallet = (franchise.retailWallet || 0) + franchiseAmount;
+          franchise.totalEarning += franchise.retailWallet
+
+          if(franchise?.kycId?.approved){
+            franchise.wallet += franchise.retailWallet
+          }else{
+            franchise.wallet += (franchise.retailWallet *20)/100
+            franchise.upgradeWallet += (franchise.retailWallet *80)/100
+
+          }
+
           await franchise.save();
   
           // Process parent franchise commission

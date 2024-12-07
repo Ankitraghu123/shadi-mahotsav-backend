@@ -58,6 +58,15 @@ const FranchiseSchema = new mongoose.Schema({
       },
       retailWallet:{
         type:Number,
+        default:0
+      },
+      upgradeWallet:{
+        type:Number,
+        default:0
+      },
+      wallet:{
+        type:Number,
+        default:0
       },
       couponOneMonth:{
         type:String
@@ -87,6 +96,10 @@ const FranchiseSchema = new mongoose.Schema({
     }],
     kycId: { type: mongoose.Schema.Types.ObjectId, 
     ref: 'KYC'
+   },
+   totalEarning:{
+    type:Number,
+    default:0
    },
    payOutDetails:[
     {
