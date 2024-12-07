@@ -700,6 +700,7 @@ const requestPayout = async (req, res) => {
     const newPayout = new PayOutModel({
       amount,
       status: false, // Payout is initially pending
+      franchiseId,
     });
 
     // Save the payout
@@ -874,5 +875,61 @@ const approveKYC = async (req, res) => {
 };
 
 
+const getAllPayout = async (req, res) => {
+  try {
 
-module.exports = {registerFranchise,uploadProfilePicture,editProfilePicture,deleteProfilePicture,getFranchiseRelations,getAllFranchise,createKYC,getReferredFranchises,editFranchise,deleteFranchise,generateRegistrationLink,getUplineTree,loginFranchise,getSingleFranchise,requestPayout,getPayoutsByFranchise,getDirectMembers,getCouponMembers,approveKYC};
+    // Populate franchiseId and nested kycId inside FranchiseModel
+    const allPayouts = await PayOutModel.find()
+      .populate({
+        path: "franchiseId", // Populate franchiseId first
+        populate: {
+          path: "kycId", // Then populate kycId inside the FranchiseModel
+        },
+      });
+
+    return res.status(201).json({
+      success: true,
+      message: "All payouts.",
+      payout: allPayouts,
+    });
+  } catch (error) {
+    console.error("Error fetching payout:", error);
+    return res.status(500).json({ success: false, message: "Internal server error." });
+  }
+};
+
+const updatePayoutStatus = async (req, res) => {
+  const { payoutId } = req.params; // Payout ID passed in the request URL
+
+  try {
+    // Find the payout by ID and update its status to true
+    const updatedPayout = await PayOutModel.findByIdAndUpdate(
+      payoutId,
+      { status: true }, // Set status to true
+      { new: true } // Return the updated document
+    );
+
+    if (!updatedPayout) {
+      return res.status(404).json({
+        success: false,
+        message: 'Payout not found.',
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Payout status updated successfully.',
+      payout: updatedPayout,
+    });
+  } catch (error) {
+    console.error('Error updating payout status:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error.',
+      error: error.message,
+    });
+  }
+};
+
+
+module.exports = {registerFranchise,uploadProfilePicture,editProfilePicture,deleteProfilePicture,getFranchiseRelations,getAllFranchise,createKYC,getReferredFranchises,editFranchise,deleteFranchise,generateRegistrationLink,getUplineTree,loginFranchise,getSingleFranchise,requestPayout,getPayoutsByFranchise,getDirectMembers,getCouponMembers,approveKYC,getAllPayout,updatePayoutStatus};
