@@ -21,11 +21,14 @@ const kycSchema = new mongoose.Schema({
 
   dob: { type: Date },
   gender: { type: String},
-  email: { type: String, unique: true },
+  email: { type: String },
   phone: { type: String },
   address: { type: String },
   maritalStatus: { type: String, enum: ['Single', 'Married', 'Divorced', 'Widowed'] },
-
+  approved:{
+    type:Boolean,
+    default:false
+  },
   nominee: {
     aadharCardFront: { type: String },
     aadharCardBack: { type: String },

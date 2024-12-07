@@ -499,6 +499,7 @@ const getAllFranchise = async (req, res) => {
           ...(email && { email }),
           ...(address && { address }),
           ...(maritalStatus && { maritalStatus }),
+          ...(accountPassbookPhoto && {accountPassbookPhoto}),
           ...(nomineeName && { 'nominee.nomineeName': nomineeName }),
           ...(nomineeRelationship && { 'nominee.nomineeRelationship': nomineeRelationship }),
           ...(nomineeDob && { 'nominee.nomineeDob': nomineeDob }),
@@ -523,6 +524,7 @@ const getAllFranchise = async (req, res) => {
         accountHolderName,
         accountNumber,
         reenterAccountNumber,
+        accountPassbookPhoto,
         ifscCode,
         dob,
         gender,
@@ -547,34 +549,6 @@ const getAllFranchise = async (req, res) => {
       res.status(201).json({ message: 'KYC created successfully', kyc: savedKYC });
     } catch (error) {
       console.error(error);
-      res.status(500).json({ message: 'Internal server error', error: error.message });
-    }
-  };
-  
-
-const getReferredFranchises = async (req, res) => {
-    try {
-      const { franchiseId } = req.params; // Extract franchise ID from request parameters
-  
-      if (!franchiseId) {
-        return res.status(400).json({ message: 'Franchise ID is required' });
-      }
-  
-      // Check if the franchise exists
-      const currentFranchise = await FranchiseModel.findById(franchiseId);
-      if (!currentFranchise) {
-        return res.status(404).json({ message: 'Franchise not found' });
-      }
-  
-      // Find all franchises referred by the current franchise
-      const referredFranchises = await FranchiseModel.find({ refBy: franchiseId });
-  
-      res.status(200).json({
-        message: 'Referred franchises retrieved successfully',
-        franchises: referredFranchises,
-      });
-    } catch (error) {
-      console.error('Error fetching referred franchises:', error.message);
       res.status(500).json({ message: 'Internal server error', error: error.message });
     }
   };
@@ -775,4 +749,130 @@ const getPayoutsByFranchise = async (req, res) => {
   }
 };
 
-module.exports = {registerFranchise,uploadProfilePicture,editProfilePicture,deleteProfilePicture,getFranchiseRelations,getAllFranchise,createKYC,getReferredFranchises,editFranchise,deleteFranchise,generateRegistrationLink,getUplineTree,loginFranchise,getSingleFranchise,requestPayout,getPayoutsByFranchise};
+const getDirectMembers = async (req, res) => {
+  try {
+    const { franchiseId } = req.params;
+
+    // Find the franchise and populate retailMemberRef
+    const franchise = await FranchiseModel.findById(franchiseId).populate({
+      path: "retailMemberRef", // Populate retail members
+      populate: {
+        path: "plans.plan", // Nested populate for the `plans.plan` in the MemberModel
+        model: "Plan", // Specify the model for `plan` if necessary
+      },
+    });
+
+    if (!franchise) {
+      return res.status(404).json({ message: "Franchise not found" });
+    }
+
+    // Get directly added members
+    const directMembers = franchise.retailMemberRef;
+
+    res.status(200).json({
+      success: true,
+      message: "Direct members fetched successfully",
+      data: directMembers,
+    });
+  } catch (error) {
+    console.error("Error fetching direct members:", error);
+    res.status(500).json({ success: false, message: "Internal Server Error" });
+  }
+};
+
+const getCouponMembers = async (req, res) => {
+  try {
+    const { franchiseId } = req.params;
+
+    // Find the franchise and populate upgradeMemberRef
+    const franchise = await FranchiseModel.findById(franchiseId).populate({
+      path: "upgradeMemberRef", // Populate retail members
+      populate: {
+        path: "plans.plan", // Nested populate for the `plans.plan` in the MemberModel
+        model: "Plan", // Specify the model for `plan` if necessary
+      },
+    });
+
+    if (!franchise) {
+      return res.status(404).json({ message: "Franchise not found" });
+    }
+
+    // Get members added via coupons
+    const couponMembers = franchise.upgradeMemberRef;
+
+    res.status(200).json({
+      success: true,
+      message: "Coupon members fetched successfully",
+      data: couponMembers,
+    });
+  } catch (error) {
+    console.error("Error fetching coupon members:", error);
+    res.status(500).json({ success: false, message: "Internal Server Error" });
+  }
+};
+
+const getReferredFranchises = async (req, res) => {
+  try {
+    const {franchiseId} = req.params; // assuming the franchise ID is passed in the route
+    
+    // Find the franchise by ID and populate the 'refTo' field
+    const franchise = await FranchiseModel.findById(franchiseId).populate('refTo');
+    
+    if (!franchise) {
+      return res.status(404).json({ message: 'Franchise not found' });
+    }
+    console.log(franchise)
+    // Return the populated 'refTo' franchises
+    return res.status(200).json({ franchises: franchise.refTo });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: 'Server error' });
+  }
+};
+
+const approveKYC = async (req, res) => {
+  const { franchiseId } = req.params;
+
+  try {
+    // Find the franchise and get the kycId
+    const franchise = await FranchiseModel.findById(franchiseId);
+
+    if (!franchise || !franchise.kycId) {
+      return res.status(404).json({ 
+        success: false, 
+        message: "Franchise not found or KYC not associated." 
+      });
+    }
+
+    // Update the approved field in the KYC document
+    const kyc = await KycModel.findById(franchise.kycId);
+
+    if (!kyc) {
+      return res.status(404).json({
+        success: false,
+        message: "KYC record not found.",
+      });
+    }
+
+    kyc.approved = true;
+    await kyc.save(); // Save the changes
+
+    res.status(200).json({
+      success: true,
+      message: "KYC approved successfully.",
+      franchise,
+      kyc,
+    });
+  } catch (error) {
+    console.error("Error approving KYC:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error.",
+      error: error.message,
+    });
+  }
+};
+
+
+
+module.exports = {registerFranchise,uploadProfilePicture,editProfilePicture,deleteProfilePicture,getFranchiseRelations,getAllFranchise,createKYC,getReferredFranchises,editFranchise,deleteFranchise,generateRegistrationLink,getUplineTree,loginFranchise,getSingleFranchise,requestPayout,getPayoutsByFranchise,getDirectMembers,getCouponMembers,approveKYC};

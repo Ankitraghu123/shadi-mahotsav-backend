@@ -1,5 +1,5 @@
 const express = require('express')
-const {registerFranchise, getFranchiseRelations, getAllFranchise, createKYC, getReferredFranchises,uploadProfilePicture, editProfilePicture, deleteProfilePicture, editFranchise, deleteFranchise, generateRegistrationLink, getUplineTree, loginFranchise, getSingleFranchise, requestPayout, getPayoutsByFranchise} = require('../controllers/FranchiseController')
+const {registerFranchise, getFranchiseRelations, getAllFranchise, createKYC, getReferredFranchises,uploadProfilePicture, editProfilePicture, deleteProfilePicture, editFranchise, deleteFranchise, generateRegistrationLink, getUplineTree, loginFranchise, getSingleFranchise, requestPayout, getPayoutsByFranchise, getDirectMembers, getCouponMembers, getFranchisesRefTo, approveKYC} = require('../controllers/FranchiseController')
 const router = express.Router()
 
 router.post('/register',registerFranchise)
@@ -36,5 +36,11 @@ router.get('/upline-tree/:franchiseId', getUplineTree);
 router.post('/request-payout', requestPayout);
 
 router.get('/payouts/:franchiseId', getPayoutsByFranchise);
+
+router.get("/:franchiseId/direct-members", getDirectMembers);
+
+router.get("/:franchiseId/coupon-members", getCouponMembers);
+
+router.put('/:franchiseId/approve-kyc', approveKYC);
 
 module.exports = router
