@@ -680,48 +680,6 @@ const getUplineTree = async (req, res) => {
     }
 };
 
-const requestPayout = async (req, res) => {
-  try {
-    const { franchiseId } = req.body; // Get franchise ID from the request body
-    const { amount } = req.body; // Amount to be requested
-
-    // Validate the input
-    if (!franchiseId || !amount) {
-      return res.status(400).json({ success: false, message: 'Franchise ID and amount are required.' });
-    }
-
-    // Find the franchise
-    const franchise = await FranchiseModel.findById(franchiseId);
-    if (!franchise) {
-      return res.status(404).json({ success: false, message: 'Franchise not found.' });
-    }
-
-    // Create a new payout request
-    const newPayout = new PayOutModel({
-      amount,
-      status: false, // Payout is initially pending
-      franchiseId,
-    });
-
-    // Save the payout
-    const savedPayout = await newPayout.save();
-
-    // Add the payout to the franchise's payOutDetails array
-    franchise.retailWallet = 0
-    franchise.payOutDetails.push(savedPayout._id);
-    await franchise.save();
-
-    return res.status(201).json({
-      success: true,
-      message: 'Payout request created successfully.',
-      payout: savedPayout,
-    });
-  } catch (error) {
-    console.error('Error requesting payout:', error);
-    return res.status(500).json({ success: false, message: 'Internal server error.' });
-  }
-};
-
 const getPayoutsByFranchise = async (req, res) => {
   try {
     const { franchiseId } = req.params; // Extract franchiseId from route params
@@ -855,7 +813,9 @@ const approveKYC = async (req, res) => {
       });
     }
 
-    kyc.approved = true;
+    kyc.approved = "Approved";
+    kyc.rejectReason = "";
+
     await kyc.save(); // Save the changes
 
     res.status(200).json({
@@ -874,6 +834,287 @@ const approveKYC = async (req, res) => {
   }
 };
 
+const approveAadhar = async (req, res) => {
+  const { franchiseId } = req.params;
+
+  try {
+    // Find the franchise and get the kycId
+    const franchise = await FranchiseModel.findById(franchiseId);
+
+    if (!franchise || !franchise.kycId) {
+      return res.status(404).json({ 
+        success: false, 
+        message: "Franchise not found or KYC not associated." 
+      });
+    }
+
+    // Update the approved field in the KYC document
+    const kyc = await KycModel.findById(franchise.kycId);
+
+    if (!kyc) {
+      return res.status(404).json({
+        success: false,
+        message: "KYC record not found.",
+      });
+    }
+
+    kyc.aadharCardApproved = "Approved";
+    kyc.aadharCardReject = "";
+
+    await kyc.save(); // Save the changes
+
+    res.status(200).json({
+      success: true,
+      message: "aadhar card approved successfully.",
+      franchise,
+      kyc,
+    });
+  } catch (error) {
+    console.error("Error approving Aadharcard:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error.",
+      error: error.message,
+    });
+  }
+};
+
+const approvePanCard = async (req, res) => {
+  const { franchiseId } = req.params;
+
+  try {
+    // Find the franchise and get the kycId
+    const franchise = await FranchiseModel.findById(franchiseId);
+
+    if (!franchise || !franchise.kycId) {
+      return res.status(404).json({ 
+        success: false, 
+        message: "Franchise not found or KYC not associated." 
+      });
+    }
+
+    // Update the approved field in the KYC document
+    const kyc = await KycModel.findById(franchise.kycId);
+
+    if (!kyc) {
+      return res.status(404).json({
+        success: false,
+        message: "KYC record not found.",
+      });
+    }
+
+    kyc.panCardApproved = "Approved";
+    kyc.panCardReject = "";
+
+    await kyc.save(); // Save the changes
+
+    res.status(200).json({
+      success: true,
+      message: "Pan Card approved successfully.",
+      franchise,
+      kyc,
+    });
+  } catch (error) {
+    console.error("Error approving Pancard:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error.",
+      error: error.message,
+    });
+  }
+};
+
+const rejectKYC = async (req, res) => {
+  const { franchiseId } = req.params;
+  const {reason} = req.body
+
+  try {
+    // Find the franchise and get the kycId
+    const franchise = await FranchiseModel.findById(franchiseId);
+
+    if (!franchise || !franchise.kycId) {
+      return res.status(404).json({ 
+        success: false, 
+        message: "Franchise not found or KYC not associated." 
+      });
+    }
+
+    // Update the approved field in the KYC document
+    const kyc = await KycModel.findById(franchise.kycId);
+
+    if (!kyc) {
+      return res.status(404).json({
+        success: false,
+        message: "KYC record not found.",
+      });
+    }
+
+    kyc.approved = "Rejected";
+    kyc.rejectReason = reason;
+
+    await kyc.save(); // Save the changes
+
+    res.status(200).json({
+      success: true,
+      message: "KYC approved successfully.",
+      franchise,
+      kyc,
+    });
+  } catch (error) {
+    console.error("Error approving KYC:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error.",
+      error: error.message,
+    });
+  }
+};
+
+const rejectAadhar = async (req, res) => {
+  const { franchiseId } = req.params;
+  const {reason} = req.body
+
+  try {
+    // Find the franchise and get the kycId
+    const franchise = await FranchiseModel.findById(franchiseId);
+
+    if (!franchise || !franchise.kycId) {
+      return res.status(404).json({ 
+        success: false, 
+        message: "Franchise not found or KYC not associated." 
+      });
+    }
+
+    // Update the approved field in the KYC document
+    const kyc = await KycModel.findById(franchise.kycId);
+
+    if (!kyc) {
+      return res.status(404).json({
+        success: false,
+        message: "KYC record not found.",
+      });
+    }
+
+    kyc.aadharCardApproved = "Rejected";
+    kyc.aadharCardReject = reason;
+
+    await kyc.save(); // Save the changes
+
+    res.status(200).json({
+      success: true,
+      message: "aadhar card approved successfully.",
+      franchise,
+      kyc,
+    });
+  } catch (error) {
+    console.error("Error approving Aadharcard:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error.",
+      error: error.message,
+    });
+  }
+};
+
+const rejectPanCard = async (req, res) => {
+  const { franchiseId } = req.params;
+  const {reason} = req.body
+
+  try {
+    // Find the franchise and get the kycId
+    const franchise = await FranchiseModel.findById(franchiseId);
+
+    if (!franchise || !franchise.kycId) {
+      return res.status(404).json({ 
+        success: false, 
+        message: "Franchise not found or KYC not associated." 
+      });
+    }
+
+    // Update the approved field in the KYC document
+    const kyc = await KycModel.findById(franchise.kycId);
+
+    if (!kyc) {
+      return res.status(404).json({
+        success: false,
+        message: "KYC record not found.",
+      });
+    }
+
+    kyc.panCardApproved = "Rejected";
+    kyc.panCardReject = reason;
+
+    await kyc.save(); // Save the changes
+
+    res.status(200).json({
+      success: true,
+      message: "Pan Card approved successfully.",
+      franchise,
+      kyc,
+    });
+  } catch (error) {
+    console.error("Error approving Pancard:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error.",
+      error: error.message,
+    });
+  }
+};
+
+
+const requestPayout = async (req, res) => {
+  try {
+    const { franchiseId } = req.body; // Get franchise ID from the request body
+    const { amount } = req.body; // Amount to be requested
+
+    // Validate the input
+    if (!franchiseId || !amount) {
+      return res.status(400).json({ success: false, message: 'Franchise ID and amount are required.' });
+    }
+
+    // Find the franchise
+    const franchise = await FranchiseModel.findById(franchiseId).populate('kycId');
+    if (!franchise) {
+      return res.status(404).json({ success: false, message: 'Franchise not found.' });
+    }
+
+    // Create a new payout request
+    const newPayout = new PayOutModel({
+      reqAmount:amount,
+      status: false, // Payout is initially pending
+      franchiseId,
+      
+    });
+
+    if(franchise?.kycId?.pancardApproved == "Approved"){
+      newPayout.panCardApproved = true
+      const deduction = (amount * 2)/100
+      newPayout.amount = amount - deduction
+    }else{
+      const deduction = (amount * 20)/100
+      newPayout.amount = amount - deduction
+    }
+
+    
+    // Save the payout
+    const savedPayout = await newPayout.save();
+
+    // Add the payout to the franchise's payOutDetails array
+    franchise.retailWallet = 0
+    franchise.payOutDetails.push(savedPayout._id);
+    await franchise.save();
+
+    return res.status(201).json({
+      success: true,
+      message: 'Payout request created successfully.',
+      payout: savedPayout,
+    });
+  } catch (error) {
+    console.error('Error requesting payout:', error);
+    return res.status(500).json({ success: false, message: 'Internal server error.' });
+  }
+};
 
 const getAllPayout = async (req, res) => {
   try {
@@ -900,14 +1141,13 @@ const getAllPayout = async (req, res) => {
 
 const updatePayoutStatus = async (req, res) => {
   const { payoutId } = req.params; // Payout ID passed in the request URL
-
+  const {reason,status} = req.body
   try {
     // Find the payout by ID and update its status to true
-    const updatedPayout = await PayOutModel.findByIdAndUpdate(
-      payoutId,
-      { status: true }, // Set status to true
-      { new: true } // Return the updated document
-    );
+    const updatedPayout = await PayOutModel.findById(payoutId);
+    updatedPayout.rejectReason = reason
+    updatedPayout.status = status
+    await updatedPayout.save()
 
     if (!updatedPayout) {
       return res.status(404).json({
@@ -932,4 +1172,4 @@ const updatePayoutStatus = async (req, res) => {
 };
 
 
-module.exports = {registerFranchise,uploadProfilePicture,editProfilePicture,deleteProfilePicture,getFranchiseRelations,getAllFranchise,createKYC,getReferredFranchises,editFranchise,deleteFranchise,generateRegistrationLink,getUplineTree,loginFranchise,getSingleFranchise,requestPayout,getPayoutsByFranchise,getDirectMembers,getCouponMembers,approveKYC,getAllPayout,updatePayoutStatus};
+module.exports = {registerFranchise,uploadProfilePicture,editProfilePicture,deleteProfilePicture,getFranchiseRelations,getAllFranchise,createKYC,getReferredFranchises,editFranchise,deleteFranchise,generateRegistrationLink,getUplineTree,loginFranchise,getSingleFranchise,requestPayout,getPayoutsByFranchise,getDirectMembers,getCouponMembers,approveKYC,getAllPayout,updatePayoutStatus,approveAadhar,approvePanCard,rejectKYC,rejectAadhar,rejectPanCard};

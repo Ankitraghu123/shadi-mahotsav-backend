@@ -1,5 +1,5 @@
 const express = require('express')
-const {registerFranchise, getFranchiseRelations, getAllFranchise, createKYC, getReferredFranchises,uploadProfilePicture, editProfilePicture, deleteProfilePicture, editFranchise, deleteFranchise, generateRegistrationLink, getUplineTree, loginFranchise, getSingleFranchise, requestPayout, getPayoutsByFranchise, getDirectMembers, getCouponMembers, getFranchisesRefTo, approveKYC, getAllPayout, updatePayoutStatus} = require('../controllers/FranchiseController')
+const {registerFranchise, getFranchiseRelations, getAllFranchise, createKYC, getReferredFranchises,uploadProfilePicture, editProfilePicture, deleteProfilePicture, editFranchise, deleteFranchise, generateRegistrationLink, getUplineTree, loginFranchise, getSingleFranchise, requestPayout, getPayoutsByFranchise, getDirectMembers, getCouponMembers, getFranchisesRefTo, approveKYC, getAllPayout, updatePayoutStatus, approveAadhar, approvePanCard, rejectKYC, rejectAadhar, rejectPanCard} = require('../controllers/FranchiseController')
 const router = express.Router()
 
 router.post('/register',registerFranchise)
@@ -42,6 +42,16 @@ router.get("/:franchiseId/direct-members", getDirectMembers);
 router.get("/:franchiseId/coupon-members", getCouponMembers);
 
 router.put('/:franchiseId/approve-kyc', approveKYC);
+
+router.put('/:franchiseId/approve-aadharcard', approveAadhar);
+
+router.put('/:franchiseId/approve-pancard', approvePanCard);
+
+router.put('/:franchiseId/reject-kyc', rejectKYC);
+
+router.put('/:franchiseId/reject-aadharcard', rejectAadhar);
+
+router.put('/:franchiseId/reject-pancard', rejectPanCard);
 
 router.put('/:payoutId/status', updatePayoutStatus);
 

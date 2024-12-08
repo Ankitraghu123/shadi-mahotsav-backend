@@ -6,11 +6,19 @@ const PayOutSchema = new mongoose.Schema(
       type:mongoose.Schema.Types.ObjectId,
       ref:"Franchise"
     },
+    reqAmount:Number,
    amount:Number,
    status:{
-    type:Boolean,
-    deafult:false
+    type:String,
+    default:"Pending"
    },
+   rejectReason:{
+    type:String
+   },
+   panCardApproved:{
+    type:Boolean,
+    default:false
+   }
   },
   { timestamps: true }
 );

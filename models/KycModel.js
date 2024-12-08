@@ -4,12 +4,14 @@ const kycSchema = new mongoose.Schema({
   aadharCardNumber: { type: String,},
   aadharCardFront: { type: String },
   aadharCardBack: { type: String },
-  aadharCardApproved: { type: Boolean, default: false },
+  aadharCardApproved: { type:String,default:"Pending" },
+  aadharCardReject:{type:String},
 
   panCardNumber: { type: String,  },
   panCardFront: { type: String },
   panCardBack: { type: String },
-  panCardApproved: { type: Boolean, default: false }, 
+  panCardApproved: { type:String,default:"Pending"}, 
+  panCardReject:{type:String},
 
   bankName: { type: String },
   accountType: { type: String, enum: ['Savings', 'Current'] },
@@ -18,16 +20,21 @@ const kycSchema = new mongoose.Schema({
   reenterAccountNumber: { type: String },
   ifscCode: { type: String },
   accountPassbookPhoto: { type: String },
+  accountPassbookApproved: { type:String,default:"Pending" }, 
+  // Reject:{type:String},
 
   dob: { type: Date },
   gender: { type: String},
   email: { type: String },
   phone: { type: String },
   address: { type: String },
-  maritalStatus: { type: String, enum: ['Single', 'Married', 'Divorced', 'Widowed'] },
+  maritalStatus: { type: String },
   approved:{
-    type:Boolean,
-    default:false
+    type:String,
+    default:"Pending"
+  },
+  rejectReason:{
+    type:String
   },
   nominee: {
     aadharCardFront: { type: String },
