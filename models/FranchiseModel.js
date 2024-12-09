@@ -106,7 +106,11 @@ const FranchiseSchema = new mongoose.Schema({
       type:mongoose.Schema.Types.ObjectId,
       ref:'PayOut'
     }
-   ]
+   ],
+   leads:[{
+    type:mongoose.Schema.Types.ObjectId,
+    ref:"Lead"
+   }]
   }, {
     timestamps: true
   });

@@ -12,6 +12,8 @@ const MessageRouter = require('./routes/MessageRoutes');
 const ContactRouter = require('./routes/ContactRoutes');
 const AdminRouter = require('./routes/AdminRoutes');
 const PlanRouter = require('./routes/PlanRoutes');
+const LeadRouter = require('./routes/LeadRoutes');
+
 
 const bodyParser = require('body-parser');
 const cookieParser = require('cookie-parser');
@@ -41,6 +43,7 @@ app.use('/api/message', MessageRouter);
 app.use('/api/enquiry', ContactRouter);
 app.use('/api/admin', AdminRouter);
 app.use('/api/plan', PlanRouter);
+app.use('/api/lead', LeadRouter);
 
 
 app.use(notFound);
