@@ -13,6 +13,7 @@ const ContactRouter = require('./routes/ContactRoutes');
 const AdminRouter = require('./routes/AdminRoutes');
 const PlanRouter = require('./routes/PlanRoutes');
 const LeadRouter = require('./routes/LeadRoutes');
+const CouponRouter = require('./routes/CouponRoutes');
 
 
 const bodyParser = require('body-parser');
@@ -44,6 +45,8 @@ app.use('/api/enquiry', ContactRouter);
 app.use('/api/admin', AdminRouter);
 app.use('/api/plan', PlanRouter);
 app.use('/api/lead', LeadRouter);
+app.use('/api/coupon', CouponRouter);
+
 
 
 app.use(notFound);

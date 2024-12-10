@@ -1,5 +1,5 @@
 const express = require('express')
-const {registerFranchise, getFranchiseRelations, getAllFranchise, createKYC, getReferredFranchises,uploadProfilePicture, editProfilePicture, deleteProfilePicture, editFranchise, deleteFranchise, generateRegistrationLink, getUplineTree, loginFranchise, getSingleFranchise, requestPayout, getPayoutsByFranchise, getDirectMembers, getCouponMembers, getFranchisesRefTo, approveKYC, getAllPayout, updatePayoutStatus, approveAadhar, approvePanCard, rejectKYC, rejectAadhar, rejectPanCard} = require('../controllers/FranchiseController')
+const {registerFranchise, getFranchiseRelations, getAllFranchise, createKYC, getReferredFranchises,uploadProfilePicture, editProfilePicture, deleteProfilePicture, editFranchise, deleteFranchise, generateRegistrationLink, getUplineTree, loginFranchise, getSingleFranchise, requestPayout, getPayoutsByFranchise, getDirectMembers, getCouponMembers, getFranchisesRefTo, approveKYC, getAllPayout, updatePayoutStatus, approveAadhar, approvePanCard, rejectKYC, rejectAadhar, rejectPanCard, getFranchiseTeam, franchiseTreeView} = require('../controllers/FranchiseController')
 const router = express.Router()
 
 router.post('/register',registerFranchise)
@@ -31,7 +31,7 @@ router.delete('/delete-franchise/:franchiseId',deleteFranchise)
 
 router.post('/generate-registration-link',generateRegistrationLink)
 
-router.get('/upline-tree/:franchiseId', getUplineTree);
+router.get('/upline-tree/:franchiseId', franchiseTreeView);
 
 router.post('/request-payout', requestPayout);
 
@@ -40,6 +40,8 @@ router.get('/payouts/:franchiseId', getPayoutsByFranchise);
 router.get("/:franchiseId/direct-members", getDirectMembers);
 
 router.get("/:franchiseId/coupon-members", getCouponMembers);
+
+router.get('/team/:franchiseCode', getFranchiseTeam);
 
 router.put('/:franchiseId/approve-kyc', approveKYC);
 
@@ -54,5 +56,6 @@ router.put('/:franchiseId/reject-aadharcard', rejectAadhar);
 router.put('/:franchiseId/reject-pancard', rejectPanCard);
 
 router.put('/:payoutId/status', updatePayoutStatus);
+
 
 module.exports = router

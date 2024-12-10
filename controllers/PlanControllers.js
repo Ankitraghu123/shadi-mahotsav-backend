@@ -103,15 +103,21 @@ const getAllPlan =asyncHandler( async (req, res) => {
   
           // Ensure retailWallet is a number
           franchise.retailWallet = (franchise.retailWallet || 0) + franchiseAmount;
-          franchise.totalEarning += franchise.retailWallet
 
-          if(franchise?.kycId?.approved){
-            franchise.wallet += franchise.retailWallet
+          if(franchise?.package == "Gold" && franchise?.refTo?.length >=3 ){
+            franchise.wallet += franchiseAmount
           }else{
-            franchise.wallet += (franchise.retailWallet *20)/100
-            franchise.upgradeWallet += (franchise.retailWallet *80)/100
-
+            franchise.wallet += (franchiseAmount *20)/100
+            franchise.upgradeWallet += (franchiseAmount *80)/100
           }
+
+          if(franchise.upgradeWallet >= 3304 && franchise.package == "silver"){
+            franchise.package = "Gold"
+            franchise.wallet += franchise.upgradeWallet- 3304
+            franchise.upgradeWallet = 0
+          }
+
+          franchise.totalEarning += franchise.wallet
 
           await franchise.save();
   

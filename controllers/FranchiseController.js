@@ -31,9 +31,9 @@ const registerFranchise = asyncHandler(async (req, res) => {
 
         let couponWallet = 0;
         if (package.toLowerCase() === 'silver') {
-            couponWallet = 354;
+            couponWallet = 600;
         } else if (package.toLowerCase() === 'gold') {
-            couponWallet = 5310;
+            couponWallet = 5400;
         }
 
         // If no uplineId and refBy are provided, create the root franchise
@@ -78,6 +78,8 @@ const registerFranchise = asyncHandler(async (req, res) => {
         if (!referrer) {
             return res.status(400).json({ message: 'Invalid referrer code. Referrer not found.' });
         }
+
+        
 
         const isInTree = async (root, targetId) => {
             if (root._id.toString() === targetId) return true; // Found the target
@@ -140,7 +142,7 @@ const registerFranchise = asyncHandler(async (req, res) => {
             code,
             refBy: referrer._id,
             uplineOf: availableParent._id,
-            uplines: [...availableParent.uplines, availableParent._id], // Inherit upline chain
+            // uplines: [...availableParent.uplines, availableParent._id], // Inherit upline chain
             mobileNumber,
             country,
             state,
@@ -158,8 +160,16 @@ const registerFranchise = asyncHandler(async (req, res) => {
         const savedFranchise = await newFranchise.save();
 
         // 4. Update the parent's downline reference
-        availableParent.refTo.push(savedFranchise._id);
+        availableParent.uplines.push(savedFranchise._id);
+        referrer.refTo.push(savedFranchise?._id)
         await availableParent.save();
+
+        if(referrer.refTo?.length >= 3 && referrer.package == "Gold"){
+          console.log(referrer.refTo?.length)
+          referrer.wallet += referrer.upgradeWallet
+          referrer.upgradeWallet = 0
+        }
+        await referrer.save()
 
         const token = jwt.sign(
           { id: savedFranchise._id, email: savedFranchise.email },
@@ -680,6 +690,93 @@ const getUplineTree = async (req, res) => {
     }
 };
 
+const franchiseTreeView = asyncHandler(async (req, res) => {
+  const { franchiseId } = req.params;
+
+  try {
+    // Find the franchise using the provided ID
+    const franchise = await FranchiseModel.findById(franchiseId).populate('uplines', 'name email code');
+    if (!franchise) {
+      return res.status(404).json({ message: 'Franchise not found.' });
+    }
+
+    // Recursive function to build the uplines tree with a depth limit
+    const buildUplineTree = async (node, depth) => {
+      // Stop recursion if depth exceeds 3
+      if (depth > 3) {
+        return null;
+      }
+
+      // Fetch uplines of the current node
+      const uplines = await FranchiseModel.find({ _id: { $in: node.uplines } });
+
+      // Recursively build the tree for each upline
+      const parentUplines = await Promise.all(
+        uplines.map(async (upline) => await buildUplineTree(upline, depth + 1))
+      );
+
+      return {
+        node,
+        uplines: parentUplines.filter((upline) => upline !== null), // Filter out null values
+      };
+    };
+
+    // Build the tree starting from the given franchise with an initial depth of 1
+    const uplineTree = await buildUplineTree(franchise, 1);
+
+    return res.status(200).json({
+      message: 'Franchise upline tree view fetched successfully.',
+      uplineTree,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'An error occurred while fetching the franchise upline tree.' });
+  }
+});
+
+
+
+
+const getFranchiseTeam = asyncHandler(async (req, res) => {
+  const { franchiseCode } = req.params; // Assuming franchise code is passed as a route param
+
+  try {
+      // Find the current franchise by its code
+      const currentFranchise = await FranchiseModel.findOne({ code: franchiseCode });
+      if (!currentFranchise) {
+          return res.status(404).json({ message: 'Franchise not found.' });
+      }
+
+      // Recursive function to get all referred franchises in a flat array
+      const getReferredFranchises = async (franchise) => {
+          let team = []; // Store all referred franchises in a flat array
+
+          for (const referredId of franchise.refTo) {
+              const referredFranchise = await FranchiseModel.findById(referredId);
+              if (referredFranchise) {
+                  team.push(referredFranchise.toObject()); // Add the current referred franchise
+                  const subTeam = await getReferredFranchises(referredFranchise); // Recursively get sub-team
+                  team = team.concat(subTeam); // Merge the sub-team into the flat array
+              }
+          }
+
+          return team;
+      };
+
+      // Fetch all the direct and indirect referred franchises
+      const team = await getReferredFranchises(currentFranchise);
+
+      return res.status(200).json({
+          message: 'Franchise team fetched successfully.',
+          franchise: currentFranchise,
+          team, // A single flat array of all team members
+      });
+  } catch (error) {
+      console.error(error);
+      return res.status(500).json({ message: 'An error occurred while fetching the franchise team.' });
+  }
+});
+
 const getPayoutsByFranchise = async (req, res) => {
   try {
     const { franchiseId } = req.params; // Extract franchiseId from route params
@@ -1172,4 +1269,4 @@ const updatePayoutStatus = async (req, res) => {
 };
 
 
-module.exports = {registerFranchise,uploadProfilePicture,editProfilePicture,deleteProfilePicture,getFranchiseRelations,getAllFranchise,createKYC,getReferredFranchises,editFranchise,deleteFranchise,generateRegistrationLink,getUplineTree,loginFranchise,getSingleFranchise,requestPayout,getPayoutsByFranchise,getDirectMembers,getCouponMembers,approveKYC,getAllPayout,updatePayoutStatus,approveAadhar,approvePanCard,rejectKYC,rejectAadhar,rejectPanCard};
+module.exports = {registerFranchise,uploadProfilePicture,editProfilePicture,deleteProfilePicture,getFranchiseRelations,getAllFranchise,createKYC,getReferredFranchises,editFranchise,deleteFranchise,generateRegistrationLink,getUplineTree,loginFranchise,getSingleFranchise,requestPayout,getPayoutsByFranchise,getDirectMembers,getCouponMembers,approveKYC,getAllPayout,updatePayoutStatus,approveAadhar,approvePanCard,rejectKYC,rejectAadhar,rejectPanCard,getFranchiseTeam,franchiseTreeView};

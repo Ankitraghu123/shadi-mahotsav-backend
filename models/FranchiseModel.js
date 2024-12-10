@@ -77,7 +77,10 @@ const FranchiseSchema = new mongoose.Schema({
       couponOneYear:{
         type:String
       },
-     
+      adminCoupons:[{
+        type:mongoose.Schema.Types.ObjectId,
+        ref:"Coupon"
+      }],
     refBy:{
         type:mongoose.Schema.Types.ObjectId,
         ref:'Franchise'
