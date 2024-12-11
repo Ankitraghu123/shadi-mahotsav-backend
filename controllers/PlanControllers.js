@@ -5,7 +5,7 @@ const Razorpay = require('razorpay');
 const crypto = require('crypto');
 const FranchiseModel = require('../models/FranchiseModel');
 const CFCModel = require('../models/CFCModel');
-const GlobalCFCIncome = require('../models/GlobalCfcIncome');
+const GlobalCFCIncome = require('../models/GlobalCFCIncome');
 const GlobalCMCIncome = require('../models/GlobalCMCIncome');
 const CMCModel = require('../models/CMCModel');
 
