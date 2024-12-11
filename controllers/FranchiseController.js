@@ -5,6 +5,12 @@ const KycModel = require('../models/KycModel');
 const jwt = require('jsonwebtoken');
 // const { request } = require('express');
 const PayOutModel = require('../models/PayOutModel');
+const CFCModel = require('../models/CFCModel');
+const GlobalCFCIncome = require('../models/GlobalCfcIncome');
+const cron = require('node-cron');
+const GlobalCMCIncome = require('../models/GlobalCMCIncome');
+const CMCModel = require('../models/CMCModel');
+const DailyReportModel = require('../models/DailyReportModel');
 
 const generateUniqueCoupon = () => {
   const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -58,6 +64,20 @@ const registerFranchise = asyncHandler(async (req, res) => {
             });
 
             const savedFranchise = await rootFranchise.save();
+
+            if(savedFranchise.package == 'gold'){
+              const newCfc = await CFCModel.create({
+                franchiseId : savedFranchise._id
+              })
+    
+              await newCfc.save()
+              await GlobalCFCIncome.updateOne({}, { $inc: { totalIncome: 108 } }, { upsert: true });
+              await GlobalCMCIncome.updateOne({}, { $inc: { totalIncome: 108 } }, { upsert: true });
+            }else if(savedFranchise.package =='silver'){
+              //then add 12 ruppes in globalcfcincome
+              await GlobalCFCIncome.updateOne({}, { $inc: { totalIncome: 12 } }, { upsert: true });
+              await GlobalCMCIncome.updateOne({}, { $inc: { totalIncome: 12 } }, { upsert: true });
+            }
 
             return res.status(201).json({
                 message: 'Root franchise registered successfully.',
@@ -159,17 +179,41 @@ const registerFranchise = asyncHandler(async (req, res) => {
         // Save the new franchise
         const savedFranchise = await newFranchise.save();
 
+        if(savedFranchise.package == 'gold'){
+          const newCfc = await CFCModel.create({
+            franchiseId : savedFranchise._id
+          })
+
+          await newCfc.save()
+          await GlobalCFCIncome.updateOne({}, { $inc: { totalIncome: 108 } }, { upsert: true });
+
+          await GlobalCMCIncome.updateOne({}, { $inc: { totalIncome: 108 } }, { upsert: true });
+        }else if(savedFranchise.package =='silver'){
+          //then add 12 ruppes in globalcfcincome
+          await GlobalCFCIncome.updateOne({}, { $inc: { totalIncome: 12 } }, { upsert: true });
+          await GlobalCMCIncome.updateOne({}, { $inc: { totalIncome: 12 } }, { upsert: true });
+        }
+
         // 4. Update the parent's downline reference
         availableParent.uplines.push(savedFranchise._id);
         referrer.refTo.push(savedFranchise?._id)
         await availableParent.save();
 
-        if(referrer.refTo?.length >= 3 && referrer.package == "Gold"){
+        if(referrer.refTo?.length >= 3 && referrer.package == "gold"){
           console.log(referrer.refTo?.length)
           referrer.wallet += referrer.upgradeWallet
+          
           referrer.upgradeWallet = 0
         }
         await referrer.save()
+
+        if(referrer.refTo?.length >= 100){
+          const newCmc = await CMCModel.create({
+            franchiseId : referrer._id
+          })
+
+          await newCmc.save()
+        }
 
         const token = jwt.sign(
           { id: savedFranchise._id, email: savedFranchise.email },
@@ -187,6 +231,120 @@ const registerFranchise = asyncHandler(async (req, res) => {
         res.status(500).json({ message: 'An error occurred while registering the franchise.' });
     }
 });
+
+cron.schedule('0 12 * * *', async () => {
+  try {
+    // Fetch the total global CFC income
+    console.log(new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
+    const globalIncome = await GlobalCFCIncome.findOne();
+    if (!globalIncome || globalIncome.totalIncome === 0) {
+      console.log('No income to distribute.');
+      return;
+    }
+
+    // Fetch all CFC members and filter out those whose totalEarnings >= 3540
+    const cfcMembers = await CFCModel.find({ totalEarnings: { $lt: 3540 } });
+    const memberCount = cfcMembers.length;
+
+    if (memberCount === 0) {
+      console.log('No CFC members eligible for distribution.');
+      return;
+    }
+
+    // Calculate the income share per eligible member
+    const sharePerMember = globalIncome.totalIncome / memberCount;
+
+    // Distribute income to all eligible CFC members by updating their Franchise's cfcWallet
+
+    const dailyReport = new DailyReportModel({
+      date: new Date(),
+      totalCfc: memberCount,
+      totalCfcIncome:globalIncome.totalIncome,
+      perCfcIncome: sharePerMember,
+    });
+
+    for (const member of cfcMembers) {
+      // Fetch the associated Franchise and update cfcWallet
+      const franchise = await FranchiseModel.findById(member.franchiseId);
+      dailyReport.franchises.push(franchise._id)
+      if (franchise) {
+        franchise.cfcWallet += sharePerMember; // Increment the cfcWallet
+        if(franchise.refTo?.length >= 3){
+          franchise.wallet += sharePerMember
+        }else{
+          franchise.wallet += (sharePerMember *20)/100
+            franchise.upgradeWallet += (sharePerMember *80)/100
+        }
+
+        
+        await franchise.save(); // Save the updated franchise
+
+        // Update the CFC member's totalEarnings
+        member.totalEarnings += sharePerMember;
+        await member.save(); // Save the updated CFC member's earnings
+      } else {
+        console.log(`Franchise with ID ${member.franchiseId} not found.`);
+      }
+    }
+
+    // Reset the global income pool
+    globalIncome.totalIncome = 0;
+    await globalIncome.save();
+
+
+    const globalCmcIncome = await GlobalCMCIncome.findOne();
+    if (!globalCmcIncome || globalCmcIncome.totalIncome === 0) {
+      console.log('No income to distribute.');
+      return;
+    }
+
+    // Fetch all CFC members and filter out those whose totalEarnings >= 3540
+    const cmcMembers = await CMCModel.find();
+    const cmcMemberCount = cmcMembers.length;
+
+    if (cmcMemberCount === 0) {
+      console.log('No CMC members eligible for distribution.');
+      return;
+    }
+
+    // Calculate the income share per eligible member
+    const cmcSharePerMember = globalCmcIncome.totalIncome / cmcMemberCount;
+    // Distribute income to all eligible CFC members by updating their Franchise's cfcWallet
+
+    dailyReport.totalCmc = cmcMemberCount;
+    dailyReport.totalCmcIncome = globalCmcIncome.totalIncome;
+    dailyReport.perCmcIncome = cmcSharePerMember;
+    for (const member of cmcMembers) {
+      // Fetch the associated Franchise and update cfcWallet
+      const franchise = await FranchiseModel.findById(member.franchiseId);
+        dailyReport.franchises.push(franchise._id)
+      if (franchise) {
+    console.log(cmcMemberCount)
+    franchise.cmcWallet += cmcSharePerMember; // Increment the cfcWallet
+    franchise.wallet+= franchise.cmcSharePerMember
+        await franchise.save(); // Save the updated franchise
+
+        // Update the CFC member's totalEarnings
+        member.totalEarnings += cmcSharePerMember;
+        await member.save(); // Save the updated CFC member's earnings
+      } else {
+        console.log(`Franchise with ID ${member.franchiseId} not found.`);
+      }
+    }
+    await dailyReport.save()
+    // Reset the global income pool
+    globalCmcIncome.totalIncome = 0;
+    await globalCmcIncome.save();
+
+
+    console.log(`Distributed ${sharePerMember.toFixed(2)} to ${memberCount} eligible CFC members.`);
+  } catch (error) {
+    console.error('Error distributing income:', error);
+  }
+}, {
+  timezone: 'Asia/Kolkata'
+});
+
 
 const loginFranchise = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
@@ -1268,5 +1426,38 @@ const updatePayoutStatus = async (req, res) => {
   }
 };
 
+const getReportByDate = async (req, res) => {
+  try {
+    // Extract the date from the request parameters or body
+    const { date } = req.params;
 
-module.exports = {registerFranchise,uploadProfilePicture,editProfilePicture,deleteProfilePicture,getFranchiseRelations,getAllFranchise,createKYC,getReferredFranchises,editFranchise,deleteFranchise,generateRegistrationLink,getUplineTree,loginFranchise,getSingleFranchise,requestPayout,getPayoutsByFranchise,getDirectMembers,getCouponMembers,approveKYC,getAllPayout,updatePayoutStatus,approveAadhar,approvePanCard,rejectKYC,rejectAadhar,rejectPanCard,getFranchiseTeam,franchiseTreeView};
+    // Parse the date from the request (ensure the date is in proper format)
+    const parsedDate = new Date(date);
+
+    // Ensure the parsed date is valid
+    if (isNaN(parsedDate)) {
+      return res.status(400).json({ error: 'Invalid date format' });
+    }
+
+    // Query the DailyReport model to find the report by the given date
+    const report = await DailyReportModel.findOne({
+      date: { $gte: parsedDate.setHours(0, 0, 0, 0), $lt: parsedDate.setHours(23, 59, 59, 999) }
+    })
+      .populate('franchises'); // Populate the franchises array with Franchise data
+
+    // If no report is found, return an appropriate message
+    if (!report) {
+      return res.status(404).json({ message: 'Report not found for the given date' });
+    }
+
+    // Return the found report as a response
+    return res.status(200).json(report);
+  } catch (error) {
+    console.error('Error fetching the report:', error);
+    return res.status(500).json({ error: 'An error occurred while fetching the report' });
+  }
+};
+
+
+
+module.exports = {registerFranchise,uploadProfilePicture,editProfilePicture,deleteProfilePicture,getFranchiseRelations,getAllFranchise,createKYC,getReferredFranchises,editFranchise,deleteFranchise,generateRegistrationLink,getUplineTree,loginFranchise,getSingleFranchise,requestPayout,getPayoutsByFranchise,getDirectMembers,getCouponMembers,approveKYC,getAllPayout,updatePayoutStatus,approveAadhar,approvePanCard,rejectKYC,rejectAadhar,rejectPanCard,getFranchiseTeam,franchiseTreeView,getReportByDate};

@@ -60,6 +60,14 @@ const FranchiseSchema = new mongoose.Schema({
         type:Number,
         default:0
       },
+      cfcWallet:{
+        type:Number,
+        default:0
+      },
+      cmcWallet:{
+        type:Number,
+        default:0
+      },
       upgradeWallet:{
         type:Number,
         default:0

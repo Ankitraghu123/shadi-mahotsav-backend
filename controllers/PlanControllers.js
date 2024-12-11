@@ -4,6 +4,10 @@ const UserModel = require('../models/UserModel');
 const Razorpay = require('razorpay');
 const crypto = require('crypto');
 const FranchiseModel = require('../models/FranchiseModel');
+const CFCModel = require('../models/CFCModel');
+const GlobalCFCIncome = require('../models/GlobalCfcIncome');
+const GlobalCMCIncome = require('../models/GlobalCMCIncome');
+const CMCModel = require('../models/CMCModel');
 
 const addPlan =asyncHandler( async (req, res) => {
   try {
@@ -104,7 +108,7 @@ const getAllPlan =asyncHandler( async (req, res) => {
           // Ensure retailWallet is a number
           franchise.retailWallet = (franchise.retailWallet || 0) + franchiseAmount;
 
-          if(franchise?.package == "Gold" && franchise?.refTo?.length >=3 ){
+          if(franchise?.package == "gold" && franchise?.refTo?.length >=3 ){
             franchise.wallet += franchiseAmount
           }else{
             franchise.wallet += (franchiseAmount *20)/100
@@ -112,9 +116,25 @@ const getAllPlan =asyncHandler( async (req, res) => {
           }
 
           if(franchise.upgradeWallet >= 3304 && franchise.package == "silver"){
-            franchise.package = "Gold"
+            franchise.package = "gold"
             franchise.wallet += franchise.upgradeWallet- 3304
             franchise.upgradeWallet = 0
+            franchise.couponWallet += 5400
+            const newCfc = await CFCModel.create({
+              franchiseId : franchise._id
+            })
+  
+            await newCfc.save()
+            await GlobalCFCIncome.updateOne({}, { $inc: { totalIncome: 108 } }, { upsert: true });
+            await GlobalCMCIncome.updateOne({}, { $inc: { totalIncome: 108 } }, { upsert: true });
+
+            if(franchise.refTo?.length > 100){
+              const newCmc = await CMCModel.create({
+                franchiseId : franchise._id
+              })
+    
+              await newCmc.save()
+            }
           }
 
           franchise.totalEarning += franchise.wallet
