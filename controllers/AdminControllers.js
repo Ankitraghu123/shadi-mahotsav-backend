@@ -2,6 +2,8 @@ const { generateToken } = require("../config/jwtToken");
 const asyncHandler = require('express-async-handler')
 const AdminModel = require("../models/AdminModel");
 const { generateRefreshToken } = require("../config/refreshToken");
+const CMCModel = require("../models/CMCModel");
+const CFCModel = require("../models/CFCModel");
 
 const Register = asyncHandler(async (req, res) => {
 
@@ -43,4 +45,30 @@ const Login = asyncHandler(async (req, res) => {
     }
   });
 
-module.exports = {Register,Login};
+  const getAllCMCMembers = async (req, res) => {
+    try {
+      const cmcMembers = await CMCModel.find();
+      if (cmcMembers.length === 0) {
+        return res.status(404).json({ message: 'No CMC members found.' });
+      }
+      res.status(200).json({ success: true, data: cmcMembers });
+    } catch (error) {
+      console.error('Error fetching CMC members:', error);
+      res.status(500).json({ success: false, error: 'Internal server error.' });
+    }
+  };
+
+  const getAllCFCMembers = async (req, res) => {
+    try {
+      const cfcMembers = await CFCModel.find();
+      if (cfcMembers.length === 0) {
+        return res.status(404).json({ message: 'No CFC members found.' });
+      }
+      res.status(200).json({ success: true, data: cfcMembers });
+    } catch (error) {
+      console.error('Error fetching CFC members:', error);
+      res.status(500).json({ success: false, error: 'Internal server error.' });
+    }
+  };
+
+module.exports = {Register,Login,getAllCFCMembers,getAllCMCMembers};

@@ -104,7 +104,7 @@ const registerFranchise = asyncHandler(async (req, res) => {
         const isInTree = async (root, targetId) => {
             if (root._id.toString() === targetId) return true; // Found the target
 
-            for (const childId of root.refTo) {
+            for (const childId of root.uplines) {
                 const child = await FranchiseModel.findById(childId);
                 if (child && (await isInTree(child, targetId))) {
                     return true; // Target found in the subtree
@@ -132,12 +132,12 @@ const registerFranchise = asyncHandler(async (req, res) => {
                 const current = queue.shift(); // Get the first node in the queue
         
                 // Check if this node has an available slot
-                if (current.refTo.length < 3) {
+                if (current.uplines.length < 3) {
                     return current; // Return the first node with an available slot
                 }
         
                 // Add the current node's children to the queue for further processing
-                for (const childId of current.refTo) {
+                for (const childId of current.uplines) {
                     const child = await FranchiseModel.findById(childId);
                     if (child) {
                         queue.push(child);
@@ -232,8 +232,8 @@ const registerFranchise = asyncHandler(async (req, res) => {
     }
 });
 
-cron.schedule('0 12 * * *', async () => {
-  try {
+cron.schedule('0 0 * * *', async () => {
+  try {``
     // Fetch the total global CFC income
     console.log(new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
     const globalIncome = await GlobalCFCIncome.findOne();
@@ -263,11 +263,14 @@ cron.schedule('0 12 * * *', async () => {
       perCfcIncome: sharePerMember,
     });
 
+    console.log(dailyReport)
+
     for (const member of cfcMembers) {
       // Fetch the associated Franchise and update cfcWallet
       const franchise = await FranchiseModel.findById(member.franchiseId);
-      dailyReport.franchises.push(franchise._id)
+     
       if (franchise) {
+        dailyReport.franchises.push(franchise._id)
         franchise.cfcWallet += sharePerMember; // Increment the cfcWallet
         if(franchise.refTo?.length >= 3){
           franchise.wallet += sharePerMember
@@ -286,6 +289,7 @@ cron.schedule('0 12 * * *', async () => {
         console.log(`Franchise with ID ${member.franchiseId} not found.`);
       }
     }
+    await dailyReport.save()
 
     // Reset the global income pool
     globalIncome.totalIncome = 0;
@@ -317,8 +321,8 @@ cron.schedule('0 12 * * *', async () => {
     for (const member of cmcMembers) {
       // Fetch the associated Franchise and update cfcWallet
       const franchise = await FranchiseModel.findById(member.franchiseId);
-        dailyReport.franchises.push(franchise._id)
       if (franchise) {
+        dailyReport.franchises.push(franchise._id)
     console.log(cmcMemberCount)
     franchise.cmcWallet += cmcSharePerMember; // Increment the cfcWallet
     franchise.wallet+= franchise.cmcSharePerMember
