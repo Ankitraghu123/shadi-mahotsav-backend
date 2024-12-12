@@ -128,16 +128,9 @@ const getAllPlan =asyncHandler( async (req, res) => {
             await GlobalCFCIncome.updateOne({}, { $inc: { totalIncome: 108 } }, { upsert: true });
             await GlobalCMCIncome.updateOne({}, { $inc: { totalIncome: 108 } }, { upsert: true });
 
-            if(franchise.refTo?.length > 100){
-              const newCmc = await CMCModel.create({
-                franchiseId : franchise._id
-              })
-    
-              await newCmc.save()
-            }
           }
 
-          franchise.totalEarning += franchise.wallet
+          franchise.totalEarning += franchiseAmount
 
           await franchise.save();
   

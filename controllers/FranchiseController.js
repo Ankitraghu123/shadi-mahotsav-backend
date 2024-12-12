@@ -24,6 +24,13 @@ const generateUniqueCoupon = () => {
 const registerFranchise = asyncHandler(async (req, res) => {
     let { name,password, refBy, uplineId,mobileNumber,country,state,city,package,email } = req.body;
 
+    const franchise = await FranchiseModel.findOne({ email: email }); 
+    if(franchise){
+      res.status(500).json({ message: "email already registered" });
+    }
+
+
+
     try {
         // Automatically generate a sequential code if not provided
         let code;

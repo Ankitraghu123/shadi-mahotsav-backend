@@ -10,6 +10,7 @@ const FranchiseSchema = new mongoose.Schema({
       },
       email:{
         type:String,
+        required:true,
         unique:true
       },
       mobileNumber: {
@@ -40,6 +41,7 @@ const FranchiseSchema = new mongoose.Schema({
       },
       package:{
         type:String,
+        required:true
       },
       upgradeMemberRef:[
         {
