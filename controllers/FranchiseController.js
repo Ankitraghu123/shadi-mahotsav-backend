@@ -11,6 +11,7 @@ const cron = require('node-cron');
 const GlobalCMCIncome = require('../models/GlobalCMCIncome');
 const CMCModel = require('../models/CMCModel');
 const DailyReportModel = require('../models/DailyReportModel');
+const AutoPoolModel = require('../models/AutoPoolModel');
 
 const generateUniqueCoupon = () => {
   const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -28,8 +29,6 @@ const registerFranchise = asyncHandler(async (req, res) => {
     if(franchise){
       return res.status(500).json({ message: "email already registered" });
     }
-
-
 
     try {
         // Automatically generate a sequential code if not provided
@@ -237,7 +236,89 @@ const registerFranchise = asyncHandler(async (req, res) => {
         console.error(error);
         res.status(500).json({ message: 'An error occurred while registering the franchise.' });
     }
+});     
+
+const RegisterAutoPool = asyncHandler(async (req, res) => {
+  try {
+    // Destructure required fields from request body
+    const { name, password, email, mobileNumber, country, state, city, pinCode, package, refBy } = req.body;
+
+    // Check if the email is already registered
+    const existingFranchise = await AutoPoolModel.findOne({ email });
+    if (existingFranchise) {
+      return res.status(400).json({ message: "Email already registered" });
+    }
+
+    // **Generate Unique Code**
+    let code;
+    const lastFranchise = await AutoPoolModel.findOne().sort({ createdAt: -1 });
+    if (lastFranchise && lastFranchise.code) {
+      const lastCodeNumber = parseInt(lastFranchise.code.slice(1)) || 0; // Extract numeric part
+      code = `F${lastCodeNumber + 1}`; // Generate the next code
+    } else {
+      code = "F1"; // Default to F1 if no franchise exists
+    }
+
+    // **Create New Franchise Instance**
+    const newFranchise = new AutoPoolModel({
+      name,
+      password,
+      email,
+      mobileNumber,
+      country,
+      state,
+      city,
+      pinCode,
+      package,
+      code,
+      refBy, // Save the referring franchise's code
+    });
+
+    // **Referral Logic**: Add this franchise to the `refTo` array of the referring franchise
+    if (refBy) {
+      const referringFranchise = await AutoPoolModel.findOne({ code: refBy });
+      if (!referringFranchise) {
+        return res.status(404).json({ message: "Referring franchise not found" });
+      }
+
+      // Update the `refTo` of the referring franchise
+      referringFranchise.refTo.push(newFranchise._id);
+      await referringFranchise.save();
+    }
+
+    // **Autopool Logic**: Find a parent franchise with less than 3 children in its `uplines`
+    const parentFranchise = await AutoPoolModel.findOne({ refTo: { $size: { $lt: 3 } } });
+
+    if (parentFranchise) {
+      // Assign the parent as the direct `uplineOf`
+      newFranchise.uplineOf = parentFranchise._id;
+
+      // Set the new franchise's `uplines`:
+      // - Take the parent's `uplines` (if any) and add the parent itself
+      newFranchise.uplines = [...parentFranchise.uplines, parentFranchise._id].slice(0, 3);
+
+      // Update the parent's `refTo` to include the new franchise
+      parentFranchise.refTo.push(newFranchise._id);
+
+      // Save parent updates
+      await parentFranchise.save();
+    }
+
+    // Save the new franchise
+    const savedFranchise = await newFranchise.save();
+
+    return res.status(201).json({
+      message: "Franchise registered successfully",
+      franchise: savedFranchise,
+      parentFranchise: parentFranchise ? parentFranchise._id : null,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "An error occurred while registering the franchise", error: error.message });
+  }
 });
+
+
 
 cron.schedule('0 0 * * *', async () => {
   try {``
@@ -358,16 +439,16 @@ cron.schedule('0 0 * * *', async () => {
 
 
 const loginFranchise = asyncHandler(async (req, res) => {
-  const { email, password } = req.body;
+  const { code, password } = req.body;
 
   try {
       // 1. Validate input
-      if (!email || !password) {
-          return res.status(400).json({ message: 'Mobile number and password are required.' });
+      if (!code || !password) {
+          return res.status(400).json({ message: 'Code and password are required.' });
       }
 
       // 2. Find franchise by mobile number
-      const franchise = await FranchiseModel.findOne({ email });
+      const franchise = await FranchiseModel.findOne({ code });
       if (!franchise) {
           return res.status(401).json({ message: 'Invalid credentials. Franchise not found.' });
       }
@@ -902,9 +983,6 @@ const franchiseTreeView = asyncHandler(async (req, res) => {
     res.status(500).json({ message: 'An error occurred while fetching the franchise upline tree.' });
   }
 });
-
-
-
 
 const getFranchiseTeam = asyncHandler(async (req, res) => {
   const { franchiseCode } = req.params; // Assuming franchise code is passed as a route param
