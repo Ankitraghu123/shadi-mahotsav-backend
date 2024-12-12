@@ -26,7 +26,7 @@ const registerFranchise = asyncHandler(async (req, res) => {
 
     const franchise = await FranchiseModel.findOne({ email: email }); 
     if(franchise){
-      res.status(500).json({ message: "email already registered" });
+      return res.status(500).json({ message: "email already registered" });
     }
 
 
