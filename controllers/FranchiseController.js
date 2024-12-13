@@ -354,7 +354,7 @@ const registerFranchise = asyncHandler(async (req, res) => {
 //   }
 // }
 
-cron.schedule('0 0 * * *', async () => {
+cron.schedule('0 21 * * *', async () => {
   try {``
     // Fetch the total global CFC income
     console.log(new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));

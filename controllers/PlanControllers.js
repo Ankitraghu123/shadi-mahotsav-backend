@@ -22,6 +22,7 @@ const addPlan =asyncHandler( async (req, res) => {
 const getAllPlan =asyncHandler( async (req, res) => {
     try {
       const allPlans = await PlanModel.find(); // Assuming data is passed in the request body
+      console.log(allPlans)
       res.status(201).json({ message: 'All Plans Feteched successfully', data: allPlans });
     } catch (err) {
       console.error(err);
@@ -83,10 +84,10 @@ const getAllPlan =asyncHandler( async (req, res) => {
       // Set purchase and expiry dates
       const purchaseDate = new Date();
       const expiryDate = new Date();
-      if (plan.name === '1Month') {
+      if (plan.name === '1 Month') {
         expiryDate.setMonth(expiryDate.getMonth() + 1);
-      } else if (plan.name === '3 Month') {
-        expiryDate.setMonth(expiryDate.getMonth() + 3);
+      } else if (plan.name === '2 Month') {
+        expiryDate.setMonth(expiryDate.getMonth() + 2);
       } else {
         expiryDate.setMonth(expiryDate.getMonth() + 12);
       }
