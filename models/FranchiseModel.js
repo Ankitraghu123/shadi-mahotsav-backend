@@ -108,6 +108,17 @@ const FranchiseSchema = new mongoose.Schema({
     kycId: { type: mongoose.Schema.Types.ObjectId, 
     ref: 'KYC'
    },
+   totalDownlineIncome: { type: Number, default: 0 }, 
+   downlineIncome: [
+       {
+           franchiseId: { type: mongoose.Schema.Types.ObjectId, ref: 'Franchise' },
+           amount: Number,
+           level: Number, // Optional
+       },
+   ],
+  totalDownlineIncome:{
+    type:Number
+  },
    totalEarning:{
     type:Number,
     default:0

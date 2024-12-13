@@ -218,6 +218,53 @@ const registerFranchise = asyncHandler(async (req, res) => {
           await newCmc.save()
         }
 
+        let currentUplineId = savedFranchise.uplineOf; 
+        let level = 1; 
+        const distributionAmount = package == 'gold' ? 81 : 9; 
+        
+        while (currentUplineId && level <= 15) {
+            const upline = await FranchiseModel.findById(currentUplineId);
+            if (!upline) break; 
+                
+            upline.downlineIncome = upline.downlineIncome || []; 
+            upline.downlineIncome.push({
+                franchiseId: savedFranchise._id, 
+                amount: distributionAmount,
+                level: level, 
+            });
+        
+            upline.totalDownlineIncome = (upline.totalDownlineIncome || 0) + distributionAmount;
+
+            if(upline.package == "gold" && upline.refTo?.length >= 3){
+              upline.wallet += distributionAmount
+            }else{
+              upline.upgradeWallet += (distributionAmount * 80)/100
+              upline.wallet += (distributionAmount * 20)/100
+            }
+
+            if(upline.package == "silver" && upline.upgradeWallet >= 3304){
+              upline.package = "gold"
+              upline.upgradeWallet = upline.upgradeWallet - 3304
+              if(upline.refTo?.length >=3 ){
+                upline.wallet += upline.upgradeWallet
+                upline.upgradeWallet = 0
+              }
+              upline.couponWallet += 5400
+            const newCfc = await CFCModel.create({
+              franchiseId : upline._id
+            })
+  
+            await newCfc.save()
+            await GlobalCFCIncome.updateOne({}, { $inc: { totalIncome: 108 } }, { upsert: true });
+            await GlobalCMCIncome.updateOne({}, { $inc: { totalIncome: 108 } }, { upsert: true });
+            }
+        
+            await upline.save();
+        
+            currentUplineId = upline.uplineOf;
+            level++;
+        }
+
         const token = jwt.sign(
           { id: savedFranchise._id, email: savedFranchise.email },
           process.env.JWT_SECRET,
@@ -1432,7 +1479,7 @@ const requestPayout = async (req, res) => {
     const savedPayout = await newPayout.save();
 
     // Add the payout to the franchise's payOutDetails array
-    franchise.retailWallet = 0
+    franchise.wallet = 0
     franchise.payOutDetails.push(savedPayout._id);
     await franchise.save();
 

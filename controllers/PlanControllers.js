@@ -118,7 +118,7 @@ const getAllPlan =asyncHandler( async (req, res) => {
           if(franchise.upgradeWallet >= 3304 && franchise.package == "silver"){
             franchise.package = "gold"
             franchise.wallet += franchise.upgradeWallet- 3304
-            franchise.upgradeWallet = 0
+            // franchise.upgradeWallet = 0
             franchise.couponWallet += 5400
             const newCfc = await CFCModel.create({
               franchiseId : franchise._id
