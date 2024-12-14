@@ -289,7 +289,7 @@ const registerFranchise = asyncHandler(async (req, res) => {
 
 async function registerInAutoPool(franchise) {
   try {
-    const { name, password, email, mobileNumber, country, state, city, pinCode, package } = franchise;
+    const { _id,name, password, email, mobileNumber, country, state, city, pinCode, package } = franchise;
 
     // **Generate Unique Code**
     let code;
@@ -313,6 +313,7 @@ async function registerInAutoPool(franchise) {
       pinCode,
       package,
       code,
+      franchiseId:_id
     });
 
     // **Check if AutoPool is Empty (No Franchises Exist)**
@@ -349,7 +350,54 @@ async function registerInAutoPool(franchise) {
     }
 
     // Save the new franchise (if not the root franchise)
-    await newFranchise.save();
+    const savedFranchise = await newFranchise.save();
+
+    let currentUplineId = savedFranchise.uplineOf; 
+        let level = 1; 
+        const distributionAmount = 9; 
+        
+        while (currentUplineId && level <= 15) {
+            const upline = await AutoPoolModel.findById(currentUplineId);
+            if (!upline) break; 
+              
+            const franchiseIncome = await FranchiseModel.findById(upline.franchiseId);
+            if(franchiseIncome){
+              franchiseIncome.autoPoolIncome = upline.autoPoolIncome || []; 
+              franchiseIncome.autoPoolIncome.push({
+                  franchiseId:franchiseIncome._id, 
+                  amount: distributionAmount,
+                  level: level, 
+              });
+              franchiseIncome.totalAutopoolIncome = (franchiseIncome.totalAutopoolIncome || 0) + distributionAmount;
+
+              if(franchiseIncome.package == "gold" && franchiseIncome.refTo?.length >= 3){
+                franchiseIncome.wallet += distributionAmount
+              }else{
+                franchiseIncome.upgradeWallet += (distributionAmount * 80)/100
+                franchiseIncome.wallet += (distributionAmount * 20)/100
+              }
+
+              if(franchiseIncome.package == "silver" && franchiseIncome.upgradeWallet >= 3304){
+                franchiseIncome.package = "gold"
+                franchiseIncome.upgradeWallet = franchiseIncome.upgradeWallet - 3304
+                if(franchiseIncome.refTo?.length >=3 ){
+                  franchiseIncome.wallet += franchiseIncome.upgradeWallet
+                  franchiseIncome.upgradeWallet = 0
+                }
+                franchiseIncome.couponWallet += 5400
+              const newCfc = await CFCModel.create({
+                franchiseId : franchiseIncome._id
+              })
+    
+              await newCfc.save()
+              await GlobalCFCIncome.updateOne({}, { $inc: { totalIncome: 108 } }, { upsert: true });
+              await GlobalCMCIncome.updateOne({}, { $inc: { totalIncome: 108 } }, { upsert: true });
+              }
+              await franchiseIncome.save();
+            }
+            currentUplineId = upline.uplineOf;
+            level++;
+        }
 
   } catch (error) {
     console.error("Error in registerInAutoPool:", error);

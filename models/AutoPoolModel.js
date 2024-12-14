@@ -5,6 +5,10 @@ const AutoPoolSchema = new mongoose.Schema({
     name: {
         type: String,
       },
+      franchiseId:{
+        type:mongoose.Schema.Types.ObjectId,
+        ref:'Franchise'
+      },
       password:{
         type:String,
       },

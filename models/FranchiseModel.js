@@ -116,9 +116,14 @@ const FranchiseSchema = new mongoose.Schema({
            level: Number, // Optional
        },
    ],
-  totalDownlineIncome:{
-    type:Number
-  },
+   totalAutopoolIncome: { type: Number, default: 0 }, 
+   autoPoolIncome: [
+       {
+           franchiseId: { type: mongoose.Schema.Types.ObjectId, ref: 'Franchise' },
+           amount: Number,
+           level: Number, // Optional
+       },
+   ],
    totalEarning:{
     type:Number,
     default:0
