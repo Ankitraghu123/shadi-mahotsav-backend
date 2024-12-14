@@ -1175,9 +1175,16 @@ const getReferredFranchises = async (req, res) => {
     const {franchiseId} = req.params; // assuming the franchise ID is passed in the route
     
     // Find the franchise by ID and populate the 'refTo' field
-    const franchise = await FranchiseModel.findById(franchiseId).populate('refTo');
+    const franchise = await FranchiseModel.findById(franchiseId)
+    .populate({
+      path: 'refTo',  // Populate the 'refTo' array
+      populate: [
+        { path: 'refBy' },  // Populate the 'refBy' field inside each 'refTo'
+        { path: 'uplineOf' }  // Populate the 'uplineOf' field inside each 'refTo'
+      ]
+    });
     
-    if (!franchise) {
+    if (!franchise) { 
       return res.status(404).json({ message: 'Franchise not found' });
     }
     console.log(franchise)
