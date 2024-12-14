@@ -195,7 +195,7 @@ const getAllPlan =asyncHandler( async (req, res) => {
       }).select('-password'); // Exclude password for security reasons
   
       if (freeUsers.length === 0) {
-        return res.status(404).json({ message: 'No users without plans found' });
+        return res.status(200).json([])
       }
   
       res.status(200).json(freeUsers);

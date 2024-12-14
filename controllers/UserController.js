@@ -48,7 +48,7 @@ const Register = asyncHandler(async (req, res) => {
         planType = '1 Month';
         franchise.couponWallet -= 150;
       } else if (franchise.couponThreeMonth === couponCode) {
-        planType = '3 Month';
+        planType = '2 Month';
         franchise.couponWallet -= 300;
       } else if (franchise.couponOneYear === couponCode) {
         planType = '1 Year';
@@ -67,8 +67,8 @@ const Register = asyncHandler(async (req, res) => {
       let expiryDate = new Date(currentDate);
       if (planType === '1 Month') {
         expiryDate.setMonth(expiryDate.getMonth() + 1);
-      } else if (planType === '3 Month') {
-        expiryDate.setMonth(expiryDate.getMonth() + 3);
+      } else if (planType === '2 Month') {
+        expiryDate.setMonth(expiryDate.getMonth() + 2);
       } else if (planType === '1 Year') {
         expiryDate.setFullYear(expiryDate.getFullYear() + 1);
       }
@@ -111,6 +111,104 @@ const Register = asyncHandler(async (req, res) => {
     res.status(500).json({ message: 'Registration failed', error: error.message });
   }
 });
+
+const addCouponToMember = asyncHandler(async (req, res) => {
+  try {
+    const { memberId, couponCode } = req.body;
+
+    // Find the member by ID
+    const member = await UserModel.findById(memberId);
+    if (!member) {
+      return res.status(404).json({ message: 'Member not found' });
+    }
+
+    // Find the franchise that has this coupon code
+    const franchise = await FranchiseModel.findOne({
+      $or: [
+        { couponOneMonth: couponCode },
+        { couponThreeMonth: couponCode },
+        { couponOneYear: couponCode },
+      ],
+    });
+
+    if (!franchise) {
+      return res.status(400).json({ message: 'Invalid coupon code' });
+    }
+
+    // Determine the plan type and deduct wallet amount
+    let planType = null;
+    let walletDeduction = 0;
+
+    if (franchise.couponOneMonth === couponCode) {
+      planType = '1 Month';
+      walletDeduction = 150;
+    } else if (franchise.couponThreeMonth === couponCode) {
+      planType = '2 Month';
+      walletDeduction = 300;
+    } else if (franchise.couponOneYear === couponCode) {
+      planType = '1 Year';
+      walletDeduction = 1500;
+    }
+
+    // Check if the franchise wallet has sufficient balance
+    if (franchise.couponWallet < walletDeduction) {
+      return res.status(400).json({
+        message: 'Insufficient balance in franchise wallet to apply this coupon.',
+      });
+    }
+
+    // Deduct the amount from the franchise's wallet
+    franchise.couponWallet -= walletDeduction;
+    franchise.upgradeMemberRef.push(member._id);
+
+    // Calculate purchase and expiry dates for the plan
+    const currentDate = new Date();
+    let expiryDate = new Date(currentDate);
+
+    if (planType === '1 Month') {
+      expiryDate.setMonth(expiryDate.getMonth() + 1);
+    } else if (planType === '2 Month') {
+      expiryDate.setMonth(expiryDate.getMonth() + 2);
+    } else if (planType === '1 Year') {
+      expiryDate.setFullYear(expiryDate.getFullYear() + 1);
+    }
+
+    // Plan IDs mapping
+    const planIds = {
+      '1 Month': '673b0b53373c1f70379a481b',
+      '2 Month': '673b0b5d373c1f70379a481d',
+      '1 Year': '673b0b6d373c1f70379a481f',
+    };
+
+    // Add the plan to the member's plans array
+    const selectedPlan = {
+      plan: planIds[planType], // Map the plan type to the respective ObjectId
+      purchaseDate: currentDate,
+      expiryDate,
+    };
+    member.plans.push(selectedPlan);
+
+    // Set the reference to the franchise
+    member.refBy = franchise._id;
+
+    // Save the updated member and franchise
+    await member.save();
+    await franchise.save();
+
+    res.status(200).json({
+      message: 'Coupon successfully applied to the member.',
+      member,
+      franchise,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      message: 'An error occurred while applying the coupon to the member.',
+      error: error.message,
+    });
+  }
+});
+
 
 const Login = asyncHandler(async (req, res) => {
    const { email, password } = req.body;
@@ -850,4 +948,4 @@ const getUsersChattedWith = async (req, res) => {
   }
 };
  
-module.exports = {Register,Login,SendRequest,RejectRequest,AcceptRequest,GetSingleUser,GetAllUser,AllReceivedRequest, AllSendedRequest,AllConnections,CompareProfile,FindMatchingProfiles,uploadProfilePicture,editProfilePicture,deleteProfilePicture,ProfileCompletion,EditProfile,AddImageToGallery,EditImageInGallery,DeleteImageFromGallery,getUsersChattedWith,DeleteMember}
+module.exports = {Register,Login,SendRequest,RejectRequest,AcceptRequest,GetSingleUser,GetAllUser,AllReceivedRequest, AllSendedRequest,AllConnections,CompareProfile,FindMatchingProfiles,uploadProfilePicture,editProfilePicture,deleteProfilePicture,ProfileCompletion,EditProfile,AddImageToGallery,EditImageInGallery,DeleteImageFromGallery,getUsersChattedWith,DeleteMember,addCouponToMember}

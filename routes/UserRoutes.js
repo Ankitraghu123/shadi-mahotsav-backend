@@ -1,5 +1,5 @@
 const express = require('express')
-const { Register, Login, SendRequest, RejectRequest, AcceptRequest, GetSingleUser, GetAllUser, AllReceivedRequest, AllConnections, CompareProfile, FindMatchingProfiles, uploadProfilePicture, editProfilePicture, deleteProfilePicture, ProfileCompletion, EditProfile, AllSendedRequest, AddImageToGallery, EditImageInGallery, DeleteImageFromGallery, getUsersChattedWith, DeleteMember } = require('../controllers/UserController')
+const { Register, Login, SendRequest, RejectRequest, AcceptRequest, GetSingleUser, GetAllUser, AllReceivedRequest, AllConnections, CompareProfile, FindMatchingProfiles, uploadProfilePicture, editProfilePicture, deleteProfilePicture, ProfileCompletion, EditProfile, AllSendedRequest, AddImageToGallery, EditImageInGallery, DeleteImageFromGallery, getUsersChattedWith, DeleteMember, addCouponToMember } = require('../controllers/UserController')
 const router = express.Router()
 
 router.post('/register',Register)
@@ -7,6 +7,8 @@ router.post('/register',Register)
 router.post('/login',Login)
 
 router.delete('/delete-member/:id',DeleteMember)
+
+router.post('/add-coupon',addCouponToMember)
 
 router.post('/upload-profile', uploadProfilePicture);
 

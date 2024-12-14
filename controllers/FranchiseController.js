@@ -25,15 +25,19 @@ const generateUniqueCoupon = () => {
 const registerFranchise = asyncHandler(async (req, res) => {
     let { name,password, refBy, uplineId,mobileNumber,country,state,city,package,email } = req.body;
 
+    refBy = refBy ? refBy.toLowerCase() : refBy;
+    uplineId = uplineId ? uplineId.toLowerCase() : uplineId;
+
+
     try {
         // Automatically generate a sequential code if not provided
         let code;
         const lastFranchise = await FranchiseModel.findOne().sort({ createdAt: -1 });
         if (lastFranchise && lastFranchise.code) {
             const lastCodeNumber = parseInt(lastFranchise.code.slice(1)) || 0; // Extract numeric part
-            code = `F${lastCodeNumber + 1}`; // Generate the next code
+            code = `f${lastCodeNumber + 1}`; // Generate the next code
         } else {
-            code = 'F1'; // Default to F1 if no franchise exists
+            code = 'f1'; // Default to F1 if no franchise exists
         }
 
         let couponWallet = 0;
@@ -473,8 +477,8 @@ cron.schedule('0 21 * * *', async () => {
 
 
 const loginFranchise = asyncHandler(async (req, res) => {
-  const { code, password } = req.body;
-
+  let { code, password } = req.body;
+  code = code ? code.toLowerCase() : code;
   try {
       // 1. Validate input
       if (!code || !password) {
@@ -650,7 +654,10 @@ const deleteProfilePicture = asyncHandler(async (req, res) => {
 
 
 const getFranchiseRelations = async (req, res) => {
-    const { code } = req.params;
+    let { code } = req.params;
+
+    code = code ? code.toLowerCase() : code;
+
 
     if (!code) {
         return res.status(400).json({ message: "Franchise code is required." });
@@ -901,7 +908,12 @@ const getAllFranchise = async (req, res) => {
 
   const generateRegistrationLink = (req, res) => {
     try {
-      const { franchiseCode, uplineId, packageType } = req.body;
+      let { franchiseCode, uplineId, packageType } = req.body;
+
+    uplineId = uplineId ? uplineId.toLowerCase() : uplineId;
+    franchiseCode = franchiseCode ? franchiseCode.toLowerCase() : franchiseCode;
+
+
   
       if (!franchiseCode) {
         return res.status(400).json({ error: 'Franchise Code (refId) is required.' });
@@ -992,7 +1004,9 @@ const franchiseTreeView = asyncHandler(async (req, res) => {
       }
 
       // Fetch uplines of the current node
-      const uplines = await FranchiseModel.find({ _id: { $in: node.uplines } });
+      const uplines = await FranchiseModel.find({ _id: { $in: node.uplines } })
+      .populate('refBy', 'name email code') // Populate refId
+      .populate('uplineOf', 'name email code'); 
 
       // Recursively build the tree for each upline
       const parentUplines = await Promise.all(
@@ -1000,7 +1014,11 @@ const franchiseTreeView = asyncHandler(async (req, res) => {
       );
 
       return {
-        node,
+        node: {
+          ...node.toObject(), // Convert the current node to an object for manipulation
+          refBy: node.refBy, // Include populated refId
+          uplineOf: node.uplineOf, // Include populated uplineId
+        },
         uplines: parentUplines.filter((upline) => upline !== null), // Filter out null values
       };
     };
@@ -1019,7 +1037,8 @@ const franchiseTreeView = asyncHandler(async (req, res) => {
 });
 
 const getFranchiseTeam = asyncHandler(async (req, res) => {
-  const { franchiseCode } = req.params; // Assuming franchise code is passed as a route param
+  let { franchiseCode } = req.params; // Assuming franchise code is passed as a route param
+  franchiseCode = franchiseCode ? franchiseCode.toLowerCase() : franchiseCode;
 
   try {
       // Find the current franchise by its code
@@ -1033,7 +1052,10 @@ const getFranchiseTeam = asyncHandler(async (req, res) => {
           let team = []; // Store all referred franchises in a flat array
 
           for (const referredId of franchise.refTo) {
-              const referredFranchise = await FranchiseModel.findById(referredId);
+              const referredFranchise = await FranchiseModel.findById(referredId).populate([
+                { path: 'refBy', select: 'name code' }, // Populate refBy field
+                { path: 'uplineOf', select: 'name code' }, // Populate uplineOf field
+              ]);
               if (referredFranchise) {
                   team.push(referredFranchise.toObject()); // Add the current referred franchise
                   const subTeam = await getReferredFranchises(referredFranchise); // Recursively get sub-team
