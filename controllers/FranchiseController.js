@@ -69,7 +69,7 @@ const registerFranchise = asyncHandler(async (req, res) => {
             });
 
             const savedFranchise = await rootFranchise.save();
-            // await registerInAutoPool(savedFranchise);
+            await registerInAutoPool(savedFranchise);
 
             if(savedFranchise.package == 'gold'){
               const newCfc = await CFCModel.create({
@@ -184,7 +184,8 @@ const registerFranchise = asyncHandler(async (req, res) => {
 
         // Save the new franchise
         const savedFranchise = await newFranchise.save();
-        // await registerInAutoPool(savedFranchise)
+        const auto = await registerInAutoPool(savedFranchise)
+        console.log("auto pool",auto)
 
         if(savedFranchise.package == 'gold'){
           const newCfc = await CFCModel.create({
@@ -286,77 +287,94 @@ const registerFranchise = asyncHandler(async (req, res) => {
     }
 });     
 
-// async function registerInAutoPool(franchise) {
-//   try {
-//     const { name, password, email, mobileNumber, country, state, city, pinCode, package, refBy } = franchise;
+async function registerInAutoPool(franchise) {
+  try {
+    const { name, password, email, mobileNumber, country, state, city, pinCode, package } = franchise;
 
-//     // **Generate Unique Code**
-//     let code;
-//     const lastFranchise = await AutoPoolModel.findOne().sort({ createdAt: -1 });
-//     if (lastFranchise && lastFranchise.code) {
-//       const lastCodeNumber = parseInt(lastFranchise.code.slice(1)) || 0; // Extract numeric part
-//       code = `F${lastCodeNumber + 1}`; // Generate the next code
-//     } else {
-//       code = "F1"; // Default to F1 if no franchise exists
-//     }
+    // **Generate Unique Code**
+    let code;
+    const lastFranchise = await AutoPoolModel.findOne().sort({ createdAt: -1 });
+    if (lastFranchise && lastFranchise.code) {
+      const lastCodeNumber = parseInt(lastFranchise.code.slice(1)) || 0; // Extract numeric part
+      code = `f${lastCodeNumber + 1}`; // Generate the next code
+    } else {
+      code = "f1"; // Default to F1 if no franchise exists
+    }
 
-//     // **Create New Franchise Instance**
-//     const newFranchise = await new AutoPoolModel({
-//       name,
-//       password,
-//       email,
-//       mobileNumber,
-//       country,
-//       state,
-//       city,
-//       pinCode,
-//       package,
-//       code,
-//       refBy, // Save the referring franchise's code
-//     });
+    // **Create New Franchise Instance**
+    const newFranchise = new AutoPoolModel({
+      name,
+      password,
+      email,
+      mobileNumber,
+      country,
+      state,
+      city,
+      pinCode,
+      package,
+      code,
+    });
 
-//     // **Referral Logic**: Add this franchise to the refTo array of the referring franchise
-//     if (refBy) {
-//       const referringFranchise = await AutoPoolModel.findOne({ code: refBy });
-//       if (!referringFranchise) {
-//         console.log("Referring franchise not found")
-//       }
+    // **Check if AutoPool is Empty (No Franchises Exist)**
+    const franchiseCount = await AutoPoolModel.countDocuments();
 
-//       // Update the refTo of the referring franchise
-//       referringFranchise.refTo.push(newFranchise._id);
-//       await referringFranchise.save();
-//     }
+    if (franchiseCount === 0) {
+      // If AutoPool is empty, this franchise will be the root franchise and has no upline.
+      console.log("No franchises found, registering the root franchise.");
+      // Save the root franchise
+      const savedRootFranchise = await newFranchise.save();
+      console.log("Root franchise registered successfully");
+      return;
+    }
 
-//     // **Autopool Logic**: Find a parent franchise with less than 3 children in its uplines
-//     const parentFranchise = await AutoPoolModel.findOne({
-//       $expr: { $lt: [{ $size: "$refTo" }, 3] }, // Use MongoDB aggregation for size check
-//     });
+    // **Autopool Logic**: Find a parent franchise with less than 3 uplines
+    const parentFranchise = await AutoPoolModel.findOne({
+      $expr: { $lt: [{ $size: "$uplines" }, 3] }, // Find franchise with less than 3 uplines
+    });
 
-//     if (parentFranchise) {
-//       // Assign the parent as the direct uplineOf
-//       newFranchise.uplineOf = parentFranchise._id;
+    if (parentFranchise) {
+      // Assign the new franchise's upline information
+      console.log(parentFranchise._id)
+      newFranchise.uplineOf = parentFranchise._id;
 
-//       // Set the new franchise's uplines:
-//       // - Take the parent's uplines (if any) and add the parent itself
-//       newFranchise.uplines = [...parentFranchise.uplines, parentFranchise._id].slice(0, 3);
+      // Add this new franchise to the parent franchise's uplines
+      parentFranchise.uplines.push(newFranchise._id);
+      
+      // Save the updated parent franchise
+      await parentFranchise.save();
+      console.log("Franchise registered successfully under the parent franchise");
+    } else {
+      console.log("No available parent franchise with less than 3 uplines");
+      return;
+    }
 
-//       // Update the parent's refTo to include the new franchise
-//       parentFranchise.refTo.push(newFranchise._id);
+    // Save the new franchise (if not the root franchise)
+    await newFranchise.save();
 
-//       // Save parent updates
-//       await parentFranchise.save();
-//     }
+  } catch (error) {
+    console.error("Error in registerInAutoPool:", error);
+    console.log("An error occurred while registering the franchise");
+  }
+}
 
-//     // Save the new franchise
-//     const savedFranchise = await newFranchise.save();
+const allAutopoolFranchise = asyncHandler(async (req,res) => {
+  try {
+    // Fetch all franchises with their relations
+    const franchises = await AutoPoolModel.find().populate('uplineOf') // Populate uplineOf with its code
 
-//     console.log("Franchise registered successfully")
-//   } catch (error) {
-//     console.error("Error in registerInAutoPool:", error);
+    if (!franchises.length) {
+      return res.status(404).json({ message: "No franchises found." });
+    }
 
-//    console.log("An error occurred while registering the franchise")
-//   }
-// }
+    // Respond with franchises and their populated relations
+    res.status(200).json({
+      message: "Franchises retrieved successfully.",
+      franchises: franchises
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to retrieve franchises.", error: error.message });
+  }
+})
 
 cron.schedule('0 21 * * *', async () => {
   try {``
@@ -474,7 +492,6 @@ cron.schedule('0 21 * * *', async () => {
 }, {
   timezone: 'Asia/Kolkata'
 });
-
 
 const loginFranchise = asyncHandler(async (req, res) => {
   let { code, password } = req.body;
@@ -1610,6 +1627,4 @@ const getReportByDate = async (req, res) => {
   }
 };
 
-
-
-module.exports = {registerFranchise,uploadProfilePicture,editProfilePicture,deleteProfilePicture,getFranchiseRelations,getAllFranchise,createKYC,getReferredFranchises,editFranchise,deleteFranchise,generateRegistrationLink,getUplineTree,loginFranchise,getSingleFranchise,requestPayout,getPayoutsByFranchise,getDirectMembers,getCouponMembers,approveKYC,getAllPayout,updatePayoutStatus,approveAadhar,approvePanCard,rejectKYC,rejectAadhar,rejectPanCard,getFranchiseTeam,franchiseTreeView,getReportByDate};
+module.exports = {registerFranchise,uploadProfilePicture,editProfilePicture,deleteProfilePicture,getFranchiseRelations,getAllFranchise,createKYC,getReferredFranchises,editFranchise,deleteFranchise,generateRegistrationLink,getUplineTree,loginFranchise,getSingleFranchise,requestPayout,getPayoutsByFranchise,getDirectMembers,getCouponMembers,approveKYC,getAllPayout,updatePayoutStatus,approveAadhar,approvePanCard,rejectKYC,rejectAadhar,rejectPanCard,getFranchiseTeam,franchiseTreeView,getReportByDate,allAutopoolFranchise};

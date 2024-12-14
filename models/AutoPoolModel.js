@@ -99,7 +99,7 @@ const AutoPoolSchema = new mongoose.Schema({
     }],
     uplineOf:{
         type:mongoose.Schema.Types.ObjectId,
-        ref:'Franchise'
+        ref:'AutoPool'
     },
     uplines:[{
         type:mongoose.Schema.Types.ObjectId,
